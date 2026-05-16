@@ -251,6 +251,7 @@ object YTPlayerUtils {
                 add(preferredYouTubeClient)
                 addAll(orderedFallbackClients)
                 if (preferredYouTubeClient != MAIN_CLIENT) add(MAIN_CLIENT)
+                add(WEB)
             }.distinct().filterNot { client ->
                 val blocked = isStreamClientTemporarilyBlocked(videoId, client.clientName)
                 if (blocked) {

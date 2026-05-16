@@ -27,12 +27,8 @@ dependencyResolutionManagement {
 rootProject.name = "OpenTune"
 include(":app")
 include(":innertube")
-include(":kugou")
 include(":lrclib")
-include(":lastfm")
-include("simpmusic")
 include(":betterlyrics")
-include(":kizzy")
 include(":canvas")
 include(":shazamkit")
 

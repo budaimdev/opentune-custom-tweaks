@@ -38,10 +38,8 @@ constructor(
 ) {
     private val baseProviders =
         listOf(
-            SimpMusicLyricsProvider,
             BetterLyricsProvider,
             LrcLibLyricsProvider,
-            KuGouLyricsProvider,
             YouTubeSubtitleLyricsProvider,
             YouTubeLyricsProvider,
         )
@@ -167,9 +165,7 @@ constructor(
         val first =
             when (preferred) {
                 PreferredLyricsProvider.LRCLIB -> LrcLibLyricsProvider
-                PreferredLyricsProvider.KUGOU -> KuGouLyricsProvider
                 PreferredLyricsProvider.BETTER_LYRICS -> BetterLyricsProvider
-                PreferredLyricsProvider.SIMPMUSIC -> SimpMusicLyricsProvider
             }
 
         return listOf(first) + baseProviders.filterNot { provider -> provider == first }
@@ -192,11 +188,6 @@ constructor(
                 .trim { it.isWhitespace() || it == '\u00A0' }
 
         return remaining.any { !it.isWhitespace() && it != '\u00A0' }
-    }
-
-    fun cancelCurrentLyricsJob() {
-        currentLyricsJob?.cancel()
-        currentLyricsJob = null
     }
 
     companion object {

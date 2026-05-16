@@ -229,7 +229,6 @@ import com.arturo254.opentune.ui.screens.navigationBuilder
 import com.arturo254.opentune.ui.screens.search.LocalSearchScreen
 import com.arturo254.opentune.ui.screens.search.OnlineSearchScreen
 import com.arturo254.opentune.ui.screens.settings.DarkMode
-import com.arturo254.opentune.ui.screens.settings.DiscordPresenceManager
 import com.arturo254.opentune.ui.screens.settings.NavigationTab
 import com.arturo254.opentune.ui.screens.settings.ThemePalettes
 import com.arturo254.opentune.ui.theme.OpenTuneTheme
@@ -359,12 +358,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        // Only clear/stop presence when the activity is actually finishing (not on rotation)
-        // and do not clear it for transient configuration changes.
-        if (isFinishing && !isChangingConfigurations) {
-            try { DiscordPresenceManager.stop() } catch (_: Exception) {}
-        }
-
         val shouldStopOnTaskClear =
             if (!isFinishing) {
                 false
@@ -1210,18 +1203,6 @@ class MainActivity : ComponentActivity() {
                                                     }
                                                 },
                                                 actions = {
-                                                    IconButton(onClick = { navController.navigate("history") }) {
-                                                        Icon(
-                                                            painter = painterResource(R.drawable.history),
-                                                            contentDescription = stringResource(R.string.history)
-                                                        )
-                                                    }
-                                                    IconButton(onClick = { navController.navigate("stats") }) {
-                                                        Icon(
-                                                            painter = painterResource(R.drawable.stats),
-                                                            contentDescription = stringResource(R.string.stats)
-                                                        )
-                                                    }
                                                     IconButton(onClick = { navController.navigate("new_release") }) {
                                                         Icon(
                                                             painter = painterResource(R.drawable.notifications),

@@ -8,9 +8,10 @@
 
 package com.arturo254.opentune
 
-import android.app.Application
 import android.app.ActivityManager
+import android.app.Application
 import android.content.Context
+import android.content.Intent
 import android.os.Build
 import android.widget.Toast
 import android.widget.Toast.LENGTH_SHORT
@@ -23,40 +24,59 @@ import coil3.disk.directory
 import coil3.request.CachePolicy
 import coil3.request.allowHardware
 import coil3.request.crossfade
-import com.arturo254.opentune.constants.*
-import com.arturo254.opentune.extensions.*
+import com.arturo254.opentune.constants.AccountChannelHandleKey
+import com.arturo254.opentune.constants.AccountEmailKey
+import com.arturo254.opentune.constants.AccountNameKey
+import com.arturo254.opentune.constants.ContentCountryKey
+import com.arturo254.opentune.constants.ContentLanguageKey
+import com.arturo254.opentune.constants.CountryCodeToName
+import com.arturo254.opentune.constants.CustomThemeColorKey
+import com.arturo254.opentune.constants.DataSyncIdKey
+import com.arturo254.opentune.constants.InnerTubeCookieKey
+import com.arturo254.opentune.constants.LanguageCodeToName
+import com.arturo254.opentune.constants.MaxImageCacheSizeKey
+import com.arturo254.opentune.constants.PoTokenGvsKey
+import com.arturo254.opentune.constants.PoTokenKey
+import com.arturo254.opentune.constants.PoTokenPlayerKey
+import com.arturo254.opentune.constants.ProxyEnabledKey
+import com.arturo254.opentune.constants.ProxyTypeKey
+import com.arturo254.opentune.constants.ProxyUrlKey
+import com.arturo254.opentune.constants.RandomThemeOnStartupKey
+import com.arturo254.opentune.constants.SYSTEM_DEFAULT
+import com.arturo254.opentune.constants.SmartTrimmerKey
+import com.arturo254.opentune.constants.StreamBypassProxyKey
+import com.arturo254.opentune.constants.UseLoginForBrowse
+import com.arturo254.opentune.constants.VisitorDataKey
+import com.arturo254.opentune.constants.WebClientPoTokenEnabledKey
+import com.arturo254.opentune.extensions.toEnum
+import com.arturo254.opentune.extensions.toInetSocketAddress
+import com.arturo254.opentune.innertube.YouTube
+import com.arturo254.opentune.innertube.models.YouTubeLocale
+import com.arturo254.opentune.ui.player.CanvasArtworkPlaybackCache
 import com.arturo254.opentune.ui.screens.settings.ThemePalettes
 import com.arturo254.opentune.ui.theme.ThemeSeedPalette
 import com.arturo254.opentune.ui.theme.ThemeSeedPaletteCodec
-import com.arturo254.opentune.utils.dataStore
 import com.arturo254.opentune.utils.PreferenceStore
+import com.arturo254.opentune.utils.dataStore
 import com.arturo254.opentune.utils.get
 import com.arturo254.opentune.utils.reportException
-import com.arturo254.opentune.innertube.YouTube
-import com.arturo254.opentune.innertube.models.YouTubeLocale
-import com.arturo254.opentune.kugou.KuGou
-import com.arturo254.opentune.lastfm.LastFM
-import com.arturo254.opentune.ui.player.CanvasArtworkPlaybackCache
 import dagger.hilt.android.HiltAndroidApp
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
-import android.content.Intent
+import timber.log.Timber
 import java.io.PrintWriter
 import java.io.StringWriter
-import kotlin.system.exitProcess
-import timber.log.Timber
 import java.net.Proxy
-import java.util.*
+import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.system.exitProcess
 
 @HiltAndroidApp
 class App : Application(), SingletonImageLoader.Factory {
@@ -66,10 +86,10 @@ class App : Application(), SingletonImageLoader.Factory {
 
     private fun currentProcessName(): String? {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            Application.getProcessName()
+            getProcessName()
         } else {
             val pid = android.os.Process.myPid()
-            val activityManager = getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
+            val activityManager = getSystemService(ACTIVITY_SERVICE) as? ActivityManager
             activityManager?.runningAppProcesses
                 ?.firstOrNull { it.pid == pid }
                 ?.processName
@@ -105,13 +125,6 @@ class App : Application(), SingletonImageLoader.Factory {
                 ?: languageTag.takeIf { it in LanguageCodeToName }
                 ?: "en"
         )
-        if (languageTag == "zh-TW") {
-            KuGou.useTraditionalChinese = true
-        }
-        LastFM.initialize(
-            apiKey = BuildConfig.LASTFM_API_KEY,
-            secret = BuildConfig.LASTFM_SECRET
-        )
     }
 
     private fun initializeDeferredAsync() {
@@ -125,8 +138,6 @@ class App : Application(), SingletonImageLoader.Factory {
                 prefs[ContentLanguageKey]?.takeIf { it != SYSTEM_DEFAULT }?.let { lang ->
                     YouTube.locale = YouTube.locale.copy(hl = lang)
                 }
-                
-                LastFM.sessionKey = prefs[LastFMSessionKey]
 
                 if (prefs[ProxyEnabledKey] == true) {
                     try {
@@ -187,7 +198,7 @@ class App : Application(), SingletonImageLoader.Factory {
         }
 
         try {
-            Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            Thread.setDefaultUncaughtExceptionHandler { _, throwable ->
                 try {
                     val sw = StringWriter()
                     val pw = PrintWriter(sw)
@@ -265,14 +276,6 @@ class App : Application(), SingletonImageLoader.Factory {
                 .distinctUntilChanged()
                 .collect { token ->
                     YouTube.poTokenPlayer = token?.takeIf { it.isNotBlank() }
-                }
-        }
-        applicationScope.launch(Dispatchers.IO) {
-            dataStore.data
-                .map { it[LastFMSessionKey] }
-                .distinctUntilChanged()
-                .collect { sessionKey ->
-                    LastFM.sessionKey = sessionKey
                 }
         }
     }

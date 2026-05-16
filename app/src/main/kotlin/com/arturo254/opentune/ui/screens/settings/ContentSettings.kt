@@ -241,16 +241,12 @@ fun ContentSettings(
             selectedValue = preferredProvider,
             values = listOf(
                 PreferredLyricsProvider.LRCLIB,
-                PreferredLyricsProvider.KUGOU,
                 PreferredLyricsProvider.BETTER_LYRICS,
-                PreferredLyricsProvider.SIMPMUSIC,
             ),
             valueText = {
                 when (it) {
                     PreferredLyricsProvider.LRCLIB -> "LrcLib"
-                    PreferredLyricsProvider.KUGOU -> "KuGou"
                     PreferredLyricsProvider.BETTER_LYRICS -> "BetterLyrics"
-                    PreferredLyricsProvider.SIMPMUSIC -> "SimpMusic"
                 }
             },
             onValueSelected = onPreferredProviderChange,

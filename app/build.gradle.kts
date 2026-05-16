@@ -218,12 +218,8 @@ dependencies {
     ksp(libs.hilt.compiler)
 
     implementation(project(":innertube"))
-    implementation(project(":kugou"))
     implementation(project(":lrclib"))
-    implementation(project(":lastfm"))
     implementation(project(":betterlyrics"))
-    implementation(project(":kizzy"))
-    implementation(project(":simpmusic"))
     implementation(project(":canvas"))
     implementation(project(":shazamkit"))
     implementation("com.github.Kyant0:m3color:2025.4")

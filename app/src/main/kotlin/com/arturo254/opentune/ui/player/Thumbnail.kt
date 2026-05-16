@@ -254,14 +254,10 @@ object CanvasArtworkPlaybackCache {
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun Thumbnail(
-    sliderPositionProvider: () -> Long?,
     modifier: Modifier = Modifier,
     isPlayerExpanded: Boolean = true, // Add parameter to control swipe based on player state
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
-    val context = LocalContext.current
-    val currentView = LocalView.current
-    val coroutineScope = rememberCoroutineScope()
 
     // States
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
@@ -377,14 +373,8 @@ fun Thumbnail(
 
         if (currentItem > currentMediaIndex && canSkipNext) {
             playerConnection.player.seekToNext()
-            if (com.arturo254.opentune.ui.screens.settings.DiscordPresenceManager.isRunning()) {
-                try { com.arturo254.opentune.ui.screens.settings.DiscordPresenceManager.restart() } catch (_: Exception) {}
-            }
         } else if (currentItem < currentMediaIndex && canSkipPrevious) {
             playerConnection.player.seekToPreviousMediaItem()
-            if (com.arturo254.opentune.ui.screens.settings.DiscordPresenceManager.isRunning()) {
-                try { com.arturo254.opentune.ui.screens.settings.DiscordPresenceManager.restart() } catch (_: Exception) {}
-            }
         }
     }
 
@@ -599,19 +589,11 @@ fun Thumbnail(
                                                     playerConnection.player.seekTo(
                                                         (currentPosition - skipAmount).coerceAtLeast(0)
                                                     )
-                                                    seekDirection =
-                                                        context.getString(R.string.seek_backward_dynamic, skipAmount / 1000)
                                                 } else {
                                                     playerConnection.player.seekTo(
                                                         (currentPosition + skipAmount).coerceAtMost(duration)
                                                     )
-                                                    seekDirection = context.getString(R.string.seek_forward_dynamic, skipAmount / 1000)
                                                 }
-                                                // If a user double-tap skip lands on a new media item, restart presence manager to pick up artwork quickly
-                                                if (com.arturo254.opentune.ui.screens.settings.DiscordPresenceManager.isRunning()) {
-                                                    try { com.arturo254.opentune.ui.screens.settings.DiscordPresenceManager.restart() } catch (_: Exception) {}
-                                                }
-
                                                 showSeekEffect = true
                                             }
                                         )

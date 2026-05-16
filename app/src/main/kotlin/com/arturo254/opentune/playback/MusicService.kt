@@ -10,30 +10,36 @@
 
 package com.arturo254.opentune.playback
 
-import android.app.PendingIntent
 import android.app.ActivityManager
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.bluetooth.BluetoothClass
+import android.bluetooth.BluetoothDevice
+import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.content.BroadcastReceiver
-import android.bluetooth.BluetoothDevice
-import android.bluetooth.BluetoothClass
 import android.content.pm.PackageManager
+import android.content.pm.ServiceInfo
 import android.database.SQLException
-import android.media.AudioManager
 import android.media.AudioFocusRequest
+import android.media.AudioManager
+import android.media.MediaCodecList
 import android.media.audiofx.AudioEffect
 import android.media.audiofx.BassBoost
 import android.media.audiofx.Equalizer
 import android.media.audiofx.LoudnessEnhancer
-import android.media.MediaCodecList
 import android.media.audiofx.Virtualizer
 import android.net.ConnectivityManager
 import android.net.Uri
 import android.os.Binder
+import android.os.Build
 import android.os.PowerManager
 import android.widget.Toast
+import androidx.core.app.NotificationCompat
 import androidx.core.content.getSystemService
 import androidx.core.net.toUri
 import androidx.datastore.preferences.core.Preferences
@@ -55,9 +61,9 @@ import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.HttpDataSource
 import androidx.media3.datasource.ResolvingDataSource
+import androidx.media3.datasource.cache.Cache
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR
-import androidx.media3.datasource.cache.Cache
 import androidx.media3.datasource.cache.ContentMetadata
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
@@ -79,23 +85,16 @@ import androidx.media3.session.MediaController
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionToken
-import com.google.common.util.concurrent.MoreExecutors
-import com.arturo254.opentune.innertube.YouTube
-import com.arturo254.opentune.innertube.models.SongItem
-import com.arturo254.opentune.lyrics.LyricsPreloadManager
-import com.arturo254.opentune.innertube.models.WatchEndpoint
 import com.arturo254.opentune.MainActivity
 import com.arturo254.opentune.R
+import com.arturo254.opentune.constants.AudioCrossfadeDurationKey
 import com.arturo254.opentune.constants.AudioNormalizationKey
 import com.arturo254.opentune.constants.AudioOffload
-import com.arturo254.opentune.constants.AudioCrossfadeDurationKey
 import com.arturo254.opentune.constants.AudioQualityKey
-import com.arturo254.opentune.constants.AutoLoadMoreKey
 import com.arturo254.opentune.constants.AutoDownloadOnLikeKey
+import com.arturo254.opentune.constants.AutoLoadMoreKey
 import com.arturo254.opentune.constants.AutoSkipNextOnErrorKey
 import com.arturo254.opentune.constants.AutoStartOnBluetoothKey
-import com.arturo254.opentune.constants.InnerTubeCookieKey
-import com.arturo254.opentune.constants.DiscordTokenKey
 import com.arturo254.opentune.constants.EqualizerBandLevelsMbKey
 import com.arturo254.opentune.constants.EqualizerBassBoostEnabledKey
 import com.arturo254.opentune.constants.EqualizerBassBoostStrengthKey
@@ -105,14 +104,17 @@ import com.arturo254.opentune.constants.EqualizerOutputGainMbKey
 import com.arturo254.opentune.constants.EqualizerSelectedProfileIdKey
 import com.arturo254.opentune.constants.EqualizerVirtualizerEnabledKey
 import com.arturo254.opentune.constants.EqualizerVirtualizerStrengthKey
-import com.arturo254.opentune.constants.EnableDiscordRPCKey
 import com.arturo254.opentune.constants.HideExplicitKey
 import com.arturo254.opentune.constants.HideVideoKey
 import com.arturo254.opentune.constants.HistoryDuration
+import com.arturo254.opentune.constants.InnerTubeCookieKey
+import com.arturo254.opentune.constants.ListenBrainzEnabledKey
+import com.arturo254.opentune.constants.ListenBrainzTokenKey
+import com.arturo254.opentune.constants.MaxSongCacheSizeKey
 import com.arturo254.opentune.constants.MediaSessionConstants.CommandToggleLike
-import com.arturo254.opentune.constants.MediaSessionConstants.CommandToggleStartRadio
 import com.arturo254.opentune.constants.MediaSessionConstants.CommandToggleRepeatMode
 import com.arturo254.opentune.constants.MediaSessionConstants.CommandToggleShuffle
+import com.arturo254.opentune.constants.MediaSessionConstants.CommandToggleStartRadio
 import com.arturo254.opentune.constants.PauseListenHistoryKey
 import com.arturo254.opentune.constants.PauseOnDeviceMuteKey
 import com.arturo254.opentune.constants.PermanentShuffleKey
@@ -123,20 +125,20 @@ import com.arturo254.opentune.constants.PlayerVolumeKey
 import com.arturo254.opentune.constants.RepeatModeKey
 import com.arturo254.opentune.constants.ShowLyricsKey
 import com.arturo254.opentune.constants.SkipSilenceKey
-import com.arturo254.opentune.constants.MaxSongCacheSizeKey
 import com.arturo254.opentune.constants.SmartTrimmerKey
 import com.arturo254.opentune.constants.StopMusicOnTaskClearKey
+import com.arturo254.opentune.constants.TogetherClientIdKey
 import com.arturo254.opentune.constants.WakelockKey
 import com.arturo254.opentune.constants.YtmSyncKey
 import com.arturo254.opentune.db.MusicDatabase
+import com.arturo254.opentune.db.entities.AlbumEntity
+import com.arturo254.opentune.db.entities.ArtistEntity
 import com.arturo254.opentune.db.entities.Event
 import com.arturo254.opentune.db.entities.FormatEntity
 import com.arturo254.opentune.db.entities.LyricsEntity
 import com.arturo254.opentune.db.entities.RelatedSongMap
 import com.arturo254.opentune.db.entities.Song
 import com.arturo254.opentune.db.entities.SongEntity
-import com.arturo254.opentune.db.entities.ArtistEntity
-import com.arturo254.opentune.db.entities.AlbumEntity
 import com.arturo254.opentune.di.DownloadCache
 import com.arturo254.opentune.di.PlayerCache
 import com.arturo254.opentune.extensions.SilentHandler
@@ -151,39 +153,32 @@ import com.arturo254.opentune.extensions.setOffloadEnabled
 import com.arturo254.opentune.extensions.toMediaItem
 import com.arturo254.opentune.extensions.toPersistQueue
 import com.arturo254.opentune.extensions.toQueue
+import com.arturo254.opentune.innertube.YouTube
+import com.arturo254.opentune.innertube.models.SongItem
+import com.arturo254.opentune.innertube.models.WatchEndpoint
 import com.arturo254.opentune.lyrics.LyricsHelper
-import com.arturo254.opentune.models.PersistQueue
+import com.arturo254.opentune.lyrics.LyricsPreloadManager
 import com.arturo254.opentune.models.PersistPlayerState
+import com.arturo254.opentune.models.PersistQueue
 import com.arturo254.opentune.models.toMediaMetadata
 import com.arturo254.opentune.playback.queues.EmptyQueue
 import com.arturo254.opentune.playback.queues.Queue
 import com.arturo254.opentune.playback.queues.YouTubeQueue
 import com.arturo254.opentune.playback.queues.filterExplicit
 import com.arturo254.opentune.playback.queues.filterVideo
+import com.arturo254.opentune.ui.screens.settings.ListenBrainzManager
 import com.arturo254.opentune.utils.CoilBitmapLoader
-import com.arturo254.opentune.utils.DiscordRPC
-import com.arturo254.opentune.ui.screens.settings.DiscordPresenceManager
+import com.arturo254.opentune.utils.NetworkConnectivityObserver
+import com.arturo254.opentune.utils.StreamClientUtils
 import com.arturo254.opentune.utils.SyncUtils
 import com.arturo254.opentune.utils.YTPlayerUtils
-import com.arturo254.opentune.utils.StreamClientUtils
 import com.arturo254.opentune.utils.dataStore
 import com.arturo254.opentune.utils.enumPreference
 import com.arturo254.opentune.utils.get
 import com.arturo254.opentune.utils.getAsync
-import com.arturo254.opentune.utils.getPresenceIntervalMillis
 import com.arturo254.opentune.utils.reportException
-import com.arturo254.opentune.utils.NetworkConnectivityObserver
+import com.google.common.util.concurrent.MoreExecutors
 import dagger.hilt.android.AndroidEntryPoint
-import com.arturo254.opentune.ui.screens.settings.ListenBrainzManager
-import com.arturo254.opentune.constants.ListenBrainzEnabledKey
-import com.arturo254.opentune.constants.ListenBrainzTokenKey
-import com.arturo254.opentune.lastfm.LastFM
-import com.arturo254.opentune.constants.EnableLastFMScrobblingKey
-import com.arturo254.opentune.constants.LastFMUseNowPlaying
-import com.arturo254.opentune.constants.ScrobbleDelayPercentKey
-import com.arturo254.opentune.constants.ScrobbleMinSongDurationKey
-import com.arturo254.opentune.constants.ScrobbleDelaySecondsKey
-import com.arturo254.opentune.constants.TogetherClientIdKey
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -205,8 +200,9 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import okhttp3.OkHttpClient
+import timber.log.Timber
 import java.io.FileOutputStream
 import java.io.ObjectInputStream
 import java.io.ObjectOutputStream
@@ -220,13 +216,6 @@ import javax.inject.Inject
 import kotlin.math.min
 import kotlin.math.pow
 import kotlin.time.Duration.Companion.seconds
-import timber.log.Timber
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.Notification
-import android.os.Build
-import android.content.pm.ServiceInfo
-import androidx.core.app.NotificationCompat
 
 @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
 @AndroidEntryPoint
@@ -325,9 +314,6 @@ class MusicService :
     private val persistentStateLock = Any()
     @Volatile
     private var suppressAutoPlayback = false
-    private var lastPresenceToken: String? = null
-    @Volatile
-    private var lastPresenceUpdateTime = 0L
     @Volatile
     private var lastLoginRecoveryPrompt: Pair<String, Long>? = null
 
@@ -420,10 +406,6 @@ class MusicService :
     private var virtualizer: Virtualizer? = null
     private var loudnessEnhancer: LoudnessEnhancer? = null
 
-    private var discordRpc: DiscordRPC? = null
-    private var lastDiscordUpdateTime = 0L
-
-    private var scrobbleManager: com.arturo254.opentune.utils.ScrobbleManager? = null
 
     val automixItems = MutableStateFlow<List<MediaItem>>(emptyList())
     val automixLoading = MutableStateFlow(false)
@@ -735,15 +717,6 @@ class MusicService :
             }
         }
 
-        currentSong.debounce(300).collect(scope) { song ->
-            updateNotification()
-            if (song != null && player.playWhenReady && player.playbackState == Player.STATE_READY) {
-                ensurePresenceManager()
-            } else {
-                discordRpc?.closeRPC()
-            }
-        }
-
         combine(
             currentMediaMetadata.distinctUntilChangedBy { it?.id },
             dataStore.data.map { it[ShowLyricsKey] ?: false }.distinctUntilChanged(),
@@ -860,29 +833,6 @@ class MusicService :
                 onCrossfadeStart = { mediaItem ->
                     val metadata = mediaItem.metadata
                     currentMediaMetadata.value = metadata
-                    // immediate update when media item transitions to avoid stale presence
-                    scope.launch {
-                        try {
-                            val token = dataStore.get(DiscordTokenKey, "")
-                            if (token.isNotBlank() && DiscordPresenceManager.isRunning()) {
-                                val mediaId = mediaItem.mediaId
-                                val song = if (mediaId != null) withContext(Dispatchers.IO) { database.song(mediaId).first() } else null
-                                val finalSong = song ?: metadata?.let { createTransientSongFromMedia(it) }
-
-                                if (canUpdatePresence()) {
-                                    DiscordPresenceManager.updateNow(
-                                        context = this@MusicService,
-                                        token = token,
-                                        song = finalSong,
-                                        positionMs = 0L,
-                                        isPaused = false
-                                    )
-                                }
-                            }
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        }
-                    }
                 }
             ).also { it.start(scope) }
 
@@ -942,40 +892,6 @@ class MusicService :
         }
 
         dataStore.data
-            .map { it[DiscordTokenKey] to (it[EnableDiscordRPCKey] ?: true) }
-            .debounce(300)
-            .distinctUntilChanged()
-            .collectLatest(scope) { (key, enabled) ->
-                val newRpc =
-                    withContext(Dispatchers.IO) {
-                        if (!key.isNullOrBlank() && enabled) {
-                            runCatching { DiscordRPC(this@MusicService, key) }
-                                .onFailure { Timber.tag("MusicService").e(it, "failed to create DiscordRPC client") }
-                                .getOrNull()
-                        } else {
-                            null
-                        }
-                    }
-
-                try {
-                    if (discordRpc?.isRpcRunning() == true) {
-                        withContext(Dispatchers.IO) { discordRpc?.closeRPC() }
-                    }
-                } catch (_: Exception) {}
-                discordRpc = newRpc
-
-                if (discordRpc != null) {
-                    if (player.playbackState == Player.STATE_READY && player.playWhenReady) {
-                        currentSong.value?.let {
-                            ensurePresenceManager()
-                        }
-                    }
-                } else {
-                    try { DiscordPresenceManager.stop() } catch (_: Exception) {}
-                }
-            }
-
-        dataStore.data
             .map { prefs ->
                 (prefs[SmartTrimmerKey] ?: false) to (prefs[MaxSongCacheSizeKey] ?: 1024)
             }
@@ -988,54 +904,6 @@ class MusicService :
                 val safeSizeMb = maxSongCacheSizeMb.toLong().coerceAtMost(Long.MAX_VALUE / bytesPerMb)
                 val limitBytes = safeSizeMb * bytesPerMb
                 trimPlayerCacheToBytes(limitBytes)
-            }
-
-        // Last.fm ScrobbleManager setup
-        dataStore.data
-            .map { it[EnableLastFMScrobblingKey] ?: false }
-            .debounce(300)
-            .distinctUntilChanged()
-            .collect(scope) { enabled ->
-                if (enabled && scrobbleManager == null) {
-                    val delayPercent = dataStore.get(ScrobbleDelayPercentKey, LastFM.DEFAULT_SCROBBLE_DELAY_PERCENT)
-                    val minSongDuration = dataStore.get(ScrobbleMinSongDurationKey, LastFM.DEFAULT_SCROBBLE_MIN_SONG_DURATION)
-                    val delaySeconds = dataStore.get(ScrobbleDelaySecondsKey, LastFM.DEFAULT_SCROBBLE_DELAY_SECONDS)
-                    
-                    scrobbleManager = com.arturo254.opentune.utils.ScrobbleManager(
-                        ioScope,
-                        minSongDuration = minSongDuration,
-                        scrobbleDelayPercent = delayPercent,
-                        scrobbleDelaySeconds = delaySeconds
-                    )
-                    scrobbleManager?.useNowPlaying = dataStore.get(LastFMUseNowPlaying, false)
-                } else if (!enabled && scrobbleManager != null) {
-                    scrobbleManager?.destroy()
-                    scrobbleManager = null
-                }
-            }
-
-        dataStore.data
-            .map { it[LastFMUseNowPlaying] ?: false }
-            .distinctUntilChanged()
-            .collectLatest(scope) {
-                scrobbleManager?.useNowPlaying = it
-            }
-
-        dataStore.data
-            .map { prefs ->
-                Triple(
-                    prefs[ScrobbleDelayPercentKey] ?: LastFM.DEFAULT_SCROBBLE_DELAY_PERCENT,
-                    prefs[ScrobbleMinSongDurationKey] ?: LastFM.DEFAULT_SCROBBLE_MIN_SONG_DURATION,
-                    prefs[ScrobbleDelaySecondsKey] ?: LastFM.DEFAULT_SCROBBLE_DELAY_SECONDS
-                )
-            }
-            .distinctUntilChanged()
-            .collect(scope) { (delayPercent, minSongDuration, delaySeconds) ->
-                scrobbleManager?.let {
-                    it.scrobbleDelayPercent = delayPercent
-                    it.minSongDuration = minSongDuration
-                    it.scrobbleDelaySeconds = delaySeconds
-                }
             }
 
         scope.launch(Dispatchers.IO) {
@@ -1155,70 +1023,6 @@ class MusicService :
                     }
                 }
             }
-        }
-    }
-
-    private fun ensurePresenceManager() {
-        if (DiscordPresenceManager.isRunning() && lastPresenceToken != null) return
-
-        // Launch in scope to avoid blocking
-        scope.launch {
-            // Don't start if Discord RPC is disabled in settings
-            if (!dataStore.get(EnableDiscordRPCKey, true)) {
-                if (DiscordPresenceManager.isRunning()) {
-                    Timber.tag("MusicService").d("Discord RPC disabled → stopping presence manager")
-                    try { DiscordPresenceManager.stop() } catch (_: Exception) {}
-                    lastPresenceToken = null
-                }
-                return@launch
-            }
-
-            val key: String = dataStore.get(DiscordTokenKey, "")
-            if (key.isNullOrBlank()) {
-                if (DiscordPresenceManager.isRunning()) {
-                    Timber.tag("MusicService").d("No Discord token → stopping presence manager")
-                    try { DiscordPresenceManager.stop() } catch (_: Exception) {}
-                    lastPresenceToken = null
-                }
-                return@launch
-            }
-
-            if (DiscordPresenceManager.isRunning() && lastPresenceToken == key) {
-                // try {
-                //     if (DiscordPresenceManager.restart()) {
-                //         Timber.tag("MusicService").d("Presence manager restarted with same token")
-                //     }
-                // } catch (ex: Exception) {
-                //     Timber.tag("MusicService").e(ex, "Failed to restart presence manager")
-                // }
-                return@launch
-            }
-
-            try {
-                DiscordPresenceManager.stop()
-                DiscordPresenceManager.start(
-                    context = this@MusicService,
-                    token = key,
-                    songProvider = { player.currentMetadata?.let { createTransientSongFromMedia(it) } ?: currentSong.value },
-                    positionProvider = { player.currentPosition },
-                    isPausedProvider = { !player.isPlaying },
-                    intervalProvider = { getPresenceIntervalMillis(this@MusicService) }
-                )
-                Timber.tag("MusicService").d("Presence manager started with token=$key")
-                lastPresenceToken = key
-            } catch (ex: Exception) {
-                Timber.tag("MusicService").e(ex, "Failed to start presence manager")
-            }
-        }
-    }
-
-    private fun canUpdatePresence(): Boolean {
-        val now = System.currentTimeMillis()
-        synchronized(this) {
-            return if (now - lastPresenceUpdateTime > MIN_PRESENCE_UPDATE_INTERVAL) {
-                lastPresenceUpdateTime = now
-                true
-            } else false
         }
     }
 
@@ -3616,8 +3420,6 @@ class MusicService :
     val timelineEmpty = player.currentTimeline.isEmpty || player.mediaItemCount == 0 || player.currentMediaItem == null
     currentMediaMetadata.value = if (timelineEmpty) null else (mediaItem?.metadata ?: player.currentMetadata)
 
-    scrobbleManager?.onSongStop()
-
     if (!timelineEmpty &&
         dataStore.get(AutoLoadMoreKey, true) &&
         reason != Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT &&
@@ -3652,8 +3454,6 @@ class MusicService :
                 currentQueue.nextPage().filterExplicit(dataStore.get(HideExplicitKey, false)).filterVideo(dataStore.get(HideVideoKey, false))
             if (player.playbackState != STATE_IDLE) {
                 player.addMediaItems(mediaItems.drop(1))
-            } else {
-                scope.launch { discordRpc?.stopActivity() }
             }
         }
     }
@@ -3696,18 +3496,13 @@ class MusicService :
             }
         }
     }
-
-    if (player.playWhenReady && player.playbackState == Player.STATE_READY) {
-        scrobbleManager?.onSongStart(player.currentMetadata, duration = player.duration)
-    }
-
     scope.launch {
         val shouldSave = withContext(Dispatchers.IO) { dataStore.get(PersistentQueueKey, true) }
         if (shouldSave) {
             saveQueueToDisk()
         }
     }
-    ensurePresenceManager()
+
 }
 
     override fun onPlaybackStateChanged(@Player.State playbackState: Int) {
@@ -3737,7 +3532,6 @@ class MusicService :
 
     if (playbackState == Player.STATE_IDLE || playbackState == Player.STATE_ENDED) {
         crossfadeAudio?.stop(resetMainFade = true)
-        scrobbleManager?.onSongStop()
     }
     
     // Auto-start recommendations when playback ends
@@ -3799,56 +3593,29 @@ class MusicService :
         }
     }
 
-    ensurePresenceManager()
+
     scope.launch {
         try {
-            val token = withContext(Dispatchers.IO) { dataStore.get(DiscordTokenKey, "") }
-            if (token.isNotBlank() && DiscordPresenceManager.isRunning()) {
-                // Obtain the freshest Song from DB using current media item id to avoid stale currentSong.value
-                val mediaId = player.currentMediaItem?.mediaId
-                val song = if (mediaId != null) withContext(Dispatchers.IO) { database.song(mediaId).first() } else null
-                val finalSong = song ?: player.currentMetadata?.let { createTransientSongFromMedia(it) }
+            // Obtain the freshest Song from DB using current media item id to avoid stale currentSong.value
+            val mediaId = player.currentMediaItem?.mediaId
+            val song = if (mediaId != null) withContext(Dispatchers.IO) { database.song(mediaId).first() } else null
+            val finalSong = song ?: player.currentMetadata?.let { createTransientSongFromMedia(it) }
 
-                if (canUpdatePresence()) {
-                    val success = withContext(Dispatchers.IO) {
-                        DiscordPresenceManager.updateNow(
-                            context = this@MusicService,
-                            token = token,
-                            song = finalSong,
-                            positionMs = player.currentPosition,
-                            isPaused = !player.playWhenReady,
-                        )
-                    }
-                    if (!success) {
-                        Timber.tag("MusicService").w("immediate presence update returned false — attempting restart")
-                        if (DiscordPresenceManager.isRunning()) {
-                            try {
-                                if (DiscordPresenceManager.restart()) {
-                                    Timber.tag("MusicService").d("presence manager restarted after failed update")
-                                }
-                            } catch (ex: Exception) {
-                                Timber.tag("MusicService").e(ex, "restart after failed presence update threw")
-                            }
+            try {
+                val lbEnabled = withContext(Dispatchers.IO) { dataStore.get(ListenBrainzEnabledKey, false) }
+                val lbToken = withContext(Dispatchers.IO) { dataStore.get(ListenBrainzTokenKey, "") }
+                if (lbEnabled && !lbToken.isNullOrBlank()) {
+                    scope.launch(Dispatchers.IO) {
+                        try {
+                            ListenBrainzManager.submitPlayingNow(this@MusicService, lbToken, finalSong, player.currentPosition)
+                        } catch (ie: Exception) {
+                            Timber.tag("MusicService").v(ie, "ListenBrainz playing_now submit failed")
                         }
                     }
-
-                    try {
-                        val lbEnabled = withContext(Dispatchers.IO) { dataStore.get(ListenBrainzEnabledKey, false) }
-                        val lbToken = withContext(Dispatchers.IO) { dataStore.get(ListenBrainzTokenKey, "") }
-                        if (lbEnabled && !lbToken.isNullOrBlank()) {
-                            scope.launch(Dispatchers.IO) {
-                                try {
-                                    ListenBrainzManager.submitPlayingNow(this@MusicService, lbToken, finalSong, player.currentPosition)
-                                } catch (ie: Exception) {
-                                    Timber.tag("MusicService").v(ie, "ListenBrainz playing_now submit failed")
-                                }
-                            }
-                        }
-                    } catch (_: Exception) {}
                 }
-            }
+            } catch (_: Exception) {}
         } catch (e: Exception) {
-            Timber.tag("MusicService").v(e, "immediate presence update failed")
+            Timber.tag("MusicService").v(e, "ListenBrainz playing_now update failed")
         }
     }
 }
@@ -3947,46 +3714,28 @@ class MusicService :
             if (crossfadeAudio?.isCrossfading() != true) {
                 currentMediaMetadata.value = player.currentMetadata
             }
-            // immediate update when media item transitions to avoid stale presence
+            // immediate update when media item transitions
             scope.launch {
                 try {
-                    val token = dataStore.get(DiscordTokenKey, "")
-                    if (token.isNotBlank() && DiscordPresenceManager.isRunning()) {
-                        val mediaId = player.currentMediaItem?.mediaId
-                        val song = if (mediaId != null) withContext(Dispatchers.IO) { database.song(mediaId).first() } else null
-                        val finalSong = song ?: player.currentMetadata?.let { createTransientSongFromMedia(it) }
+                    val mediaId = player.currentMediaItem?.mediaId
+                    val song = if (mediaId != null) withContext(Dispatchers.IO) { database.song(mediaId).first() } else null
+                    val finalSong = song ?: player.currentMetadata?.let { createTransientSongFromMedia(it) }
 
-                        if (canUpdatePresence()) {
-                            val success = DiscordPresenceManager.updateNow(
-                                context = this@MusicService,
-                                token = token,
-                                song = finalSong,
-                                positionMs = player.currentPosition,
-                                isPaused = !player.isPlaying,
-                            )
-                            if (!success) {
-                                Timber.tag("MusicService").w("transition immediate presence update failed — attempting restart")
-                                try { DiscordPresenceManager.stop(); DiscordPresenceManager.start(this@MusicService, dataStore.get(DiscordTokenKey, ""), { song }, { player.currentPosition }, { !player.isPlaying }, { getPresenceIntervalMillis(this@MusicService) }) } catch (_: Exception) {}
-                            }
-                            try {
-                                val lbEnabled = dataStore.get(ListenBrainzEnabledKey, false)
-                                val lbToken = dataStore.get(ListenBrainzTokenKey, "")
-                                if (lbEnabled && !lbToken.isNullOrBlank()) {
-                                    scope.launch(Dispatchers.IO) {
-                                        try {
-                                            ListenBrainzManager.submitPlayingNow(this@MusicService, lbToken, finalSong, player.currentPosition)
-                                        } catch (ie: Exception) {
-                                            Timber.tag("MusicService").v(ie, "ListenBrainz playing_now submit failed on transition")
-                                        }
-                                    }
+                    try {
+                        val lbEnabled = dataStore.get(ListenBrainzEnabledKey, false)
+                        val lbToken = dataStore.get(ListenBrainzTokenKey, "")
+                        if (lbEnabled && !lbToken.isNullOrBlank()) {
+                            scope.launch(Dispatchers.IO) {
+                                try {
+                                    ListenBrainzManager.submitPlayingNow(this@MusicService, lbToken, finalSong, player.currentPosition)
+                                } catch (ie: Exception) {
+                                    Timber.tag("MusicService").v(ie, "ListenBrainz playing_now submit failed on transition")
                                 }
-                                
-                                // Last.fm now playing - handled by ScrobbleManager
-                            } catch (_: Exception) {}
+                            }
                         }
-                    }
+                    } catch (_: Exception) {}
                 } catch (e: Exception) {
-                    Timber.tag("MusicService").v(e, "immediate presence update failed on transition")
+                    Timber.tag("MusicService").v(e, "ListenBrainz playing_now update failed on transition")
                 }
             }
         }
@@ -4004,61 +3753,29 @@ class MusicService :
 
             scope.launch {
                 try {
-                    val token = withContext(Dispatchers.IO) { dataStore.get(DiscordTokenKey, "") }
-                    if (token.isNotBlank() && DiscordPresenceManager.isRunning()) {
-                        val song = if (currentMediaId != null) withContext(Dispatchers.IO) { database.song(currentMediaId).first() } else null
-                        val finalSong = song ?: currentMetadata?.let { createTransientSongFromMedia(it) }
+                    val song = if (currentMediaId != null) withContext(Dispatchers.IO) { database.song(currentMediaId).first() } else null
+                    val finalSong = song ?: currentMetadata?.let { createTransientSongFromMedia(it) }
 
-                        if (canUpdatePresence()) {
-                            // Run update on IO if possible, assuming updateNow is thread-safe or handles its own threading correctly
-                            // If updateNow touches Views, this might break. Assuming it's network/logic.
-                            val success = withContext(Dispatchers.IO) {
-                                DiscordPresenceManager.updateNow(
-                                    context = this@MusicService,
-                                    token = token,
-                                    song = finalSong,
-                                    positionMs = currentPosition,
-                                    isPaused = !isPlaying,
-                                )
-                            }
-                            if (!success) {
-                                Timber.tag("MusicService").w("isPlaying/mediaTransition immediate presence update failed — restarting manager")
-                                if (DiscordPresenceManager.isRunning()) {
-                                    try { DiscordPresenceManager.stop(); DiscordPresenceManager.restart() } catch (_: Exception) {}
+                    try {
+                        val lbEnabled = withContext(Dispatchers.IO) { dataStore.get(ListenBrainzEnabledKey, false) }
+                        val lbToken = withContext(Dispatchers.IO) { dataStore.get(ListenBrainzTokenKey, "") }
+                        if (lbEnabled && !lbToken.isNullOrBlank()) {
+                            scope.launch(Dispatchers.IO) {
+                                try {
+                                    ListenBrainzManager.submitPlayingNow(this@MusicService, lbToken, finalSong, currentPosition)
+                                } catch (ie: Exception) {
+                                    Timber.tag("MusicService").v(ie, "ListenBrainz playing_now submit failed for isPlaying/mediaTransition")
                                 }
                             }
-                            try {
-                                val lbEnabled = withContext(Dispatchers.IO) { dataStore.get(ListenBrainzEnabledKey, false) }
-                                val lbToken = withContext(Dispatchers.IO) { dataStore.get(ListenBrainzTokenKey, "") }
-                                if (lbEnabled && !lbToken.isNullOrBlank()) {
-                                    scope.launch(Dispatchers.IO) {
-                                        try {
-                                            ListenBrainzManager.submitPlayingNow(this@MusicService, lbToken, finalSong, currentPosition)
-                                        } catch (ie: Exception) {
-                                            Timber.tag("MusicService").v(ie, "ListenBrainz playing_now submit failed for isPlaying/mediaTransition")
-                                        }
-                                    }
-                                }
-                                
-                                // Last.fm now playing - handled by ScrobbleManager
-                            } catch (_: Exception) {}
                         }
-                    }
+                    } catch (_: Exception) {}
                 } catch (e: Exception) {
-                    Timber.tag("MusicService").v(e, "immediate presence update failed for isPlaying/mediaTransition")
+                    Timber.tag("MusicService").v(e, "ListenBrainz playing_now update failed for isPlaying/mediaTransition")
                 }
             }
         }
 
-   if (events.containsAny(Player.EVENT_IS_PLAYING_CHANGED)) {
-        ensurePresenceManager()
-        // Scrobble: Track play/pause state
-        scrobbleManager?.onPlayerStateChanged(player.isPlaying, player.currentMetadata, duration = player.duration)
-    } else if (events.contains(Player.EVENT_MEDIA_ITEM_TRANSITION)) {
-        ensurePresenceManager()
-    } else {
-        ensurePresenceManager()
-    }
+
   }
 
 
@@ -4820,13 +4537,7 @@ class MusicService :
         try {
             scope.launch { stopTogetherInternal() }
         } catch (_: Exception) {}
-        try {
-            DiscordPresenceManager.stop()
-        } catch (_: Exception) {}
-        try {
-            discordRpc?.closeRPC()
-        } catch (_: Exception) {}
-        discordRpc = null
+
         try {
             connectivityObserver.unregister()
         } catch (_: Exception) {}
@@ -4920,22 +4631,6 @@ class MusicService :
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
-        // When the user clears the app from Recents, ensure we clear Discord rich presence
-        try {
-            scope.launch {
-                try { discordRpc?.stopActivity() } catch (_: Exception) {}
-            }
-        } catch (_: Exception) {}
-
-        try {
-            if (discordRpc?.isRpcRunning() == true) {
-                try { discordRpc?.closeRPC() } catch (_: Exception) {}
-            }
-        } catch (_: Exception) {}
-        discordRpc = null
-        try { DiscordPresenceManager.stop() } catch (_: Exception) {}
-        lastPresenceToken = null
-
         val stopMusicOnTaskClearEnabled = dataStore.get(StopMusicOnTaskClearKey, false)
 
         try {
@@ -5014,6 +4709,5 @@ class MusicService :
         const val PERSISTENT_AUTOMIX_FILE = "persistent_automix.data"
         const val PERSISTENT_PLAYER_STATE_FILE = "persistent_player_state.data"
         const val MAX_CONSECUTIVE_ERR = 5
-        const val MIN_PRESENCE_UPDATE_INTERVAL = 20_000L
     }
 }
