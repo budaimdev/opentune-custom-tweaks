@@ -8,19 +8,10 @@
 
 package com.arturo254.opentune.ui.screens.settings
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -68,7 +59,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
@@ -81,13 +71,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.datastore.preferences.core.edit
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
-import kotlinx.coroutines.launch
-import com.arturo254.opentune.App.Companion.forgetAccount
 import com.arturo254.opentune.BuildConfig
 import com.arturo254.opentune.R
 import com.arturo254.opentune.constants.AccountChannelHandleKey
@@ -105,7 +91,6 @@ import com.arturo254.opentune.innertube.utils.completed
 import com.arturo254.opentune.innertube.utils.parseCookieString
 import com.arturo254.opentune.ui.component.InfoLabel
 import com.arturo254.opentune.ui.component.TextFieldDialog
-import com.arturo254.opentune.ui.screens.buildLoginRoute
 import com.arturo254.opentune.utils.Updater
 import com.arturo254.opentune.utils.dataStore
 import com.arturo254.opentune.utils.rememberPreference
@@ -156,106 +141,8 @@ fun AccountSettings(
             modifier = Modifier.padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Account Card
-            AccountCard(
-                isLoggedIn = isLoggedIn,
-                accountName = accountName,
-                accountEmail = accountEmail,
-                accountImageUrl = accountImageUrl,
-                onAccountClick = {
-                    onClose()
-                    if (isLoggedIn) {
-                        navController.navigate("account")
-                    } else {
-                        navController.navigate(buildLoginRoute())
-                    }
-                },
-                onLogout = {
-                    onInnerTubeCookieChange("")
-                    forgetAccount(context)
-                }
-            )
-
-            // Token Editor Dialog
-            if (showTokenEditor) {
-                TokenEditorDialog(
-                    innerTubeCookie = innerTubeCookie,
-                    visitorData = visitorData,
-                    dataSyncId = dataSyncId,
-                    accountNamePref = accountNamePref,
-                    accountEmail = accountEmail,
-                    accountChannelHandle = accountChannelHandle,
-                    onInnerTubeCookieChange = onInnerTubeCookieChange,
-                    onPoTokenChange = onPoTokenChange,
-                    onVisitorDataChange = onVisitorDataChange,
-                    onDataSyncIdChange = onDataSyncIdChange,
-                    onAccountNameChange = onAccountNameChange,
-                    onAccountEmailChange = onAccountEmailChange,
-                    onAccountChannelHandleChange = onAccountChannelHandleChange,
-                    onDismiss = { showTokenEditor = false }
-                )
-            }
-
-            // Account Options Section
-            AnimatedVisibility(
-                visible = isLoggedIn,
-                enter = fadeIn() + expandVertically(),
-                exit = fadeOut() + shrinkVertically()
-            ) {
-                SettingsSection(title = stringResource(R.string.account)) {
-                    SettingsToggleItem(
-                        icon = painterResource(R.drawable.add_circle),
-                        title = stringResource(R.string.more_content),
-                        subtitle = stringResource(R.string.use_login_for_browse_desc),
-                        checked = useLoginForBrowse,
-                        onCheckedChange = {
-                            YouTube.useLoginForBrowse = it
-                            onUseLoginForBrowseChange(it)
-                        }
-                    )
-
-                    HorizontalDivider(
-                        modifier = Modifier.padding(start = 56.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
-                    )
-
-                    SettingsToggleItem(
-                        icon = painterResource(R.drawable.cached),
-                        title = stringResource(R.string.yt_sync),
-                        checked = ytmSync,
-                        onCheckedChange = onYtmSyncChange
-                    )
-                }
-            }
-
             // Sync & Integration Section
             SettingsSection(title = stringResource(R.string.integration)) {
-                SettingsClickableItem(
-                    icon = painterResource(R.drawable.playlist_add),
-                    title = stringResource(R.string.select_playlist_to_sync),
-                    onClick = { showPlaylistDialog = true }
-                )
-
-                HorizontalDivider(
-                    modifier = Modifier.padding(start = 56.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
-                )
-
-                SettingsClickableItem(
-                    icon = painterResource(R.drawable.integration),
-                    title = stringResource(R.string.integration),
-                    subtitle = "Discord, Last.fm, ListenBrainz",
-                    onClick = {
-                        onClose()
-                        navController.navigate("settings/integration")
-                    }
-                )
-
-                HorizontalDivider(
-                    modifier = Modifier.padding(start = 56.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
-                )
-
                 SettingsClickableItem(
                     icon = painterResource(R.drawable.fire),
                     title = stringResource(R.string.music_together),
@@ -265,24 +152,6 @@ fun AccountSettings(
                     }
                 )
             }
-
-            // Advanced Section
-            SettingsSection(title = stringResource(R.string.misc)) {
-                SettingsClickableItem(
-                    icon = painterResource(R.drawable.token),
-                    title = when {
-                        !isLoggedIn -> stringResource(R.string.advanced_login)
-                        showToken -> stringResource(R.string.token_shown)
-                        else -> stringResource(R.string.token_hidden)
-                    },
-                    onClick = {
-                        if (!isLoggedIn) showTokenEditor = true
-                        else if (!showToken) showToken = true
-                        else showTokenEditor = true
-                    }
-                )
-            }
-
             // Settings & Updates Section
             SettingsSection {
                 SettingsClickableItem(
