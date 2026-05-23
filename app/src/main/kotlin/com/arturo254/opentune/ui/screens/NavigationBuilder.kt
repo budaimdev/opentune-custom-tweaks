@@ -4,8 +4,6 @@
  * Licensed Under GPL-3.0 | see git history for contributors
  */
 
-
-
 package com.arturo254.opentune.ui.screens
 
 import android.net.Uri
@@ -16,6 +14,8 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.TopAppBarScrollBehavior
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -26,15 +26,16 @@ import com.arturo254.opentune.ui.screens.artist.ArtistItemsScreen
 import com.arturo254.opentune.ui.screens.artist.ArtistScreen
 import com.arturo254.opentune.ui.screens.artist.ArtistSongsScreen
 import com.arturo254.opentune.ui.screens.library.LibraryScreen
+import com.arturo254.opentune.ui.screens.musicrecognition.MusicRecognitionRoute
+import com.arturo254.opentune.ui.screens.musicrecognition.MusicRecognitionScreen
 import com.arturo254.opentune.ui.screens.playlist.AutoPlaylistScreen
+import com.arturo254.opentune.ui.screens.playlist.CachePlaylistScreen
 import com.arturo254.opentune.ui.screens.playlist.LocalPlaylistScreen
 import com.arturo254.opentune.ui.screens.playlist.OnlinePlaylistScreen
 import com.arturo254.opentune.ui.screens.playlist.TopPlaylistScreen
-import com.arturo254.opentune.ui.screens.playlist.CachePlaylistScreen
 import com.arturo254.opentune.ui.screens.search.OnlineSearchResult
 import com.arturo254.opentune.ui.screens.settings.AboutScreen
 import com.arturo254.opentune.ui.screens.settings.AppearanceSettings
-import com.arturo254.opentune.ui.screens.settings.CustomizeBackground
 import com.arturo254.opentune.ui.screens.settings.BackupAndRestore
 import com.arturo254.opentune.ui.screens.settings.ChangelogScreen
 import com.arturo254.opentune.ui.screens.settings.ContentSettings
@@ -47,8 +48,6 @@ import com.arturo254.opentune.ui.screens.settings.SettingsScreen
 import com.arturo254.opentune.ui.screens.settings.StorageSettings
 import com.arturo254.opentune.ui.screens.settings.ThemeCreatorScreen
 import com.arturo254.opentune.ui.screens.settings.UpdateScreen
-import com.arturo254.opentune.ui.screens.musicrecognition.MusicRecognitionRoute
-import com.arturo254.opentune.ui.screens.musicrecognition.MusicRecognitionScreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 fun NavGraphBuilder.navigationBuilder(
@@ -86,7 +85,7 @@ fun NavGraphBuilder.navigationBuilder(
         NewReleaseScreen(navController, scrollBehavior)
     }
     composable("charts_screen") {
-       ChartsScreen(navController)
+        ChartsScreen(navController)
     }
     composable(
         route = "browse/{browseId}",
@@ -105,11 +104,11 @@ fun NavGraphBuilder.navigationBuilder(
     composable(
         route = "search/{query}",
         arguments =
-        listOf(
-            navArgument("query") {
-                type = NavType.StringType
-            },
-        ),
+            listOf(
+                navArgument("query") {
+                    type = NavType.StringType
+                },
+            ),
         enterTransition = {
             fadeIn(tween(250))
         },
@@ -136,33 +135,33 @@ fun NavGraphBuilder.navigationBuilder(
     composable(
         route = "album/{albumId}",
         arguments =
-        listOf(
-            navArgument("albumId") {
-                type = NavType.StringType
-            },
-        ),
+            listOf(
+                navArgument("albumId") {
+                    type = NavType.StringType
+                },
+            ),
     ) {
         AlbumScreen(navController, scrollBehavior)
     }
     composable(
         route = "artist/{artistId}",
         arguments =
-        listOf(
-            navArgument("artistId") {
-                type = NavType.StringType
-            },
-        ),
+            listOf(
+                navArgument("artistId") {
+                    type = NavType.StringType
+                },
+            ),
     ) {
         ArtistScreen(navController, scrollBehavior)
     }
     composable(
         route = "artist/{artistId}/songs",
         arguments =
-        listOf(
-            navArgument("artistId") {
-                type = NavType.StringType
-            },
-        ),
+            listOf(
+                navArgument("artistId") {
+                    type = NavType.StringType
+                },
+            ),
     ) {
         ArtistSongsScreen(navController, scrollBehavior)
     }
@@ -179,52 +178,52 @@ fun NavGraphBuilder.navigationBuilder(
     composable(
         route = "artist/{artistId}/items?browseId={browseId}&params={params}",
         arguments =
-        listOf(
-            navArgument("artistId") {
-                type = NavType.StringType
-            },
-            navArgument("browseId") {
-                type = NavType.StringType
-                nullable = true
-            },
-            navArgument("params") {
-                type = NavType.StringType
-                nullable = true
-            },
-        ),
+            listOf(
+                navArgument("artistId") {
+                    type = NavType.StringType
+                },
+                navArgument("browseId") {
+                    type = NavType.StringType
+                    nullable = true
+                },
+                navArgument("params") {
+                    type = NavType.StringType
+                    nullable = true
+                },
+            ),
     ) {
         ArtistItemsScreen(navController, scrollBehavior)
     }
     composable(
         route = "online_playlist/{playlistId}",
         arguments =
-        listOf(
-            navArgument("playlistId") {
-                type = NavType.StringType
-            },
-        ),
+            listOf(
+                navArgument("playlistId") {
+                    type = NavType.StringType
+                },
+            ),
     ) {
         OnlinePlaylistScreen(navController, scrollBehavior)
     }
     composable(
         route = "local_playlist/{playlistId}",
         arguments =
-        listOf(
-            navArgument("playlistId") {
-                type = NavType.StringType
-            },
-        ),
+            listOf(
+                navArgument("playlistId") {
+                    type = NavType.StringType
+                },
+            ),
     ) {
         LocalPlaylistScreen(navController, scrollBehavior)
     }
     composable(
         route = "auto_playlist/{playlist}",
         arguments =
-        listOf(
-            navArgument("playlist") {
-                type = NavType.StringType
-            },
-        ),
+            listOf(
+                navArgument("playlist") {
+                    type = NavType.StringType
+                },
+            ),
     ) {
         AutoPlaylistScreen(navController, scrollBehavior)
     }
@@ -234,35 +233,35 @@ fun NavGraphBuilder.navigationBuilder(
             listOf(
                 navArgument("playlist") {
                     type = NavType.StringType
-            },
-        ),
+                },
+            ),
     ) {
         CachePlaylistScreen(navController, scrollBehavior)
     }
     composable(
         route = "top_playlist/{top}",
         arguments =
-        listOf(
-            navArgument("top") {
-                type = NavType.StringType
-            },
-        ),
+            listOf(
+                navArgument("top") {
+                    type = NavType.StringType
+                },
+            ),
     ) {
         TopPlaylistScreen(navController, scrollBehavior)
     }
     composable(
         route = "youtube_browse/{browseId}?params={params}",
         arguments =
-        listOf(
-            navArgument("browseId") {
-                type = NavType.StringType
-                nullable = true
-            },
-            navArgument("params") {
-                type = NavType.StringType
-                nullable = true
-            },
-        ),
+            listOf(
+                navArgument("browseId") {
+                    type = NavType.StringType
+                    nullable = true
+                },
+                navArgument("params") {
+                    type = NavType.StringType
+                    nullable = true
+                },
+            ),
     ) {
         YouTubeBrowseScreen(navController)
     }
@@ -326,4 +325,23 @@ fun NavGraphBuilder.navigationBuilder(
             startUrl = backStackEntry.arguments?.getString(LOGIN_URL_ARGUMENT)?.let(Uri::decode)
         )
     }
+
+// ─────────────────────────────────────────────────────────────────────────
+// Always On Display — como diálogo que cubre completamente
+// ─────────────────────────────────────────────────────────────────────────
+    composable(
+        route = "always_on_display",
+        // Esto la hace un diálogo que se superpone
+    ) { backStackEntry ->
+        Dialog(
+            onDismissRequest = { navController.navigateUp() },
+            properties = DialogProperties(
+                usePlatformDefaultWidth = false,
+                decorFitsSystemWindows = false
+            )
+        ) {
+            AlwaysOnDisplayScreen(navController)
+        }
+    }
+
 }
