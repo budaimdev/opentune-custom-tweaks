@@ -39,6 +39,7 @@ import com.arturo254.opentune.ui.screens.settings.AppearanceSettings
 import com.arturo254.opentune.ui.screens.settings.BackupAndRestore
 import com.arturo254.opentune.ui.screens.settings.ChangelogScreen
 import com.arturo254.opentune.ui.screens.settings.ContentSettings
+import com.arturo254.opentune.ui.screens.settings.CustomizeBackground
 import com.arturo254.opentune.ui.screens.settings.MusicTogetherScreen
 import com.arturo254.opentune.ui.screens.settings.PalettePickerScreen
 import com.arturo254.opentune.ui.screens.settings.PlayerSettings

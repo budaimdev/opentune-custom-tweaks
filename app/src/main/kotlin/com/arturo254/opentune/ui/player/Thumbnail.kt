@@ -132,18 +132,6 @@ private object ThumbnailConstants {
     const val CANVAS_DEFAULT_MAX_SIZE = 256
     const val PERSIST_FILE = "canvas_artwork_cache.json"
     const val PERSIST_DEBOUNCE_MS = 2_000L
-    const val HEADER_HORIZONTAL_PADDING = 32
-    const val HEADER_VERTICAL_PADDING = 16
-    const val ICON_SIZE = 120
-    const val THUMBNAIL_CORNER_RADIUS_DEFAULT = 16f
-    const val HORIZONTAL_ITEM_WIDTH_FACTOR = 1f
-    const val BLUR_RADIUS = 60f
-    const val BLUR_ALPHA = 0.6f
-    const val SEEK_EFFECT_DURATION_MS = 1_000L
-    const val DOUBLE_TAP_WINDOW_MS = 1_000L
-    const val SEEK_INCREMENT_MS = 5_000
-    const val SEEK_TEXT_ALPHA = 0.7f
-    const val VELOCITY_THRESHOLD = 500f
 
     const val ARTWORK_SIZE_TARGET = 1440
 }
@@ -949,18 +937,6 @@ private fun CanvasArtworkPlayer(
         modifier = modifier.alpha(alpha),
     )
 }
-
-private fun restartDiscordPresenceIfRunning() {
-    if (
-        com.arturo254.opentune.ui.screens.settings.DiscordPresenceManager.isRunning()
-    ) {
-        try {
-            com.arturo254.opentune.ui.screens.settings.DiscordPresenceManager.restart()
-        } catch (_: Exception) {
-        }
-    }
-}
-
 
 private fun normalizeCanvasSongTitle(raw: String): String {
     return raw
