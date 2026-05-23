@@ -9,7 +9,6 @@
 package com.arturo254.opentune.ui.screens.settings
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -25,7 +24,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -36,20 +34,16 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -68,33 +62,20 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import com.arturo254.opentune.BuildConfig
 import com.arturo254.opentune.R
-import com.arturo254.opentune.constants.AccountChannelHandleKey
-import com.arturo254.opentune.constants.AccountEmailKey
-import com.arturo254.opentune.constants.AccountNameKey
-import com.arturo254.opentune.constants.DataSyncIdKey
 import com.arturo254.opentune.constants.InnerTubeCookieKey
-import com.arturo254.opentune.constants.PoTokenKey
 import com.arturo254.opentune.constants.SelectedYtmPlaylistsKey
-import com.arturo254.opentune.constants.UseLoginForBrowse
-import com.arturo254.opentune.constants.VisitorDataKey
-import com.arturo254.opentune.constants.YtmSyncKey
 import com.arturo254.opentune.innertube.YouTube
 import com.arturo254.opentune.innertube.utils.completed
 import com.arturo254.opentune.innertube.utils.parseCookieString
-import com.arturo254.opentune.ui.component.InfoLabel
-import com.arturo254.opentune.ui.component.TextFieldDialog
 import com.arturo254.opentune.utils.Updater
 import com.arturo254.opentune.utils.dataStore
 import com.arturo254.opentune.utils.rememberPreference
-import com.arturo254.opentune.viewmodels.HomeViewModel
 
 @Composable
 fun AccountSettings(
@@ -102,29 +83,14 @@ fun AccountSettings(
     onClose: () -> Unit,
     latestVersionName: String
 ) {
-    val context = LocalContext.current
+    LocalContext.current
     val uriHandler = LocalUriHandler.current
+    val (innerTubeCookie, _) = rememberPreference(InnerTubeCookieKey, "")
 
-    val (accountNamePref, onAccountNameChange) = rememberPreference(AccountNameKey, "")
-    val (accountEmail, onAccountEmailChange) = rememberPreference(AccountEmailKey, "")
-    val (accountChannelHandle, onAccountChannelHandleChange) = rememberPreference(AccountChannelHandleKey, "")
-    val (innerTubeCookie, onInnerTubeCookieChange) = rememberPreference(InnerTubeCookieKey, "")
-    val (poToken, onPoTokenChange) = rememberPreference(PoTokenKey, "")
-    val (visitorData, onVisitorDataChange) = rememberPreference(VisitorDataKey, "")
-    val (dataSyncId, onDataSyncIdChange) = rememberPreference(DataSyncIdKey, "")
-
-    val isLoggedIn = remember(innerTubeCookie) {
+    remember(innerTubeCookie) {
         "SAPISID" in parseCookieString(innerTubeCookie)
     }
-    val (useLoginForBrowse, onUseLoginForBrowseChange) = rememberPreference(UseLoginForBrowse, true)
-    val (ytmSync, onYtmSyncChange) = rememberPreference(YtmSyncKey, true)
 
-    val viewModel: HomeViewModel = hiltViewModel()
-    val accountName by viewModel.accountName.collectAsState()
-    val accountImageUrl by viewModel.accountImageUrl.collectAsState()
-
-    var showToken by remember { mutableStateOf(false) }
-    var showTokenEditor by remember { mutableStateOf(false) }
     var showPlaylistDialog by remember { mutableStateOf(false) }
 
     val hasUpdate = !Updater.isSameVersion(latestVersionName, BuildConfig.VERSION_NAME)
@@ -187,7 +153,7 @@ fun AccountSettings(
     // Playlist Selection Dialog
     if (showPlaylistDialog) {
         PlaylistSelectionDialog(
-            onDismiss = { showPlaylistDialog = false }
+            onDismiss = { }
         )
     }
 }
@@ -249,131 +215,6 @@ private fun AccountSettingsHeader(onClose: () -> Unit) {
         }
     }
 }
-
-@Composable
-private fun AccountCard(
-    isLoggedIn: Boolean,
-    accountName: String,
-    accountEmail: String,
-    accountImageUrl: String?,
-    onAccountClick: () -> Unit,
-    onLogout: () -> Unit
-) {
-    val cardColor by animateColorAsState(
-        targetValue = if (isLoggedIn)
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
-        else
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-        animationSpec = tween(300),
-        label = "cardColor"
-    )
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(24.dp))
-            .clickable(onClick = onAccountClick),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = cardColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Avatar
-            Box(
-                modifier = Modifier
-                    .size(60.dp)
-                    .clip(CircleShape)
-                    .background(
-                        if (isLoggedIn)
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
-                        else
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f)
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                if (isLoggedIn && accountImageUrl != null) {
-                    AsyncImage(
-                        model = accountImageUrl,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .size(60.dp)
-                            .clip(CircleShape)
-                    )
-                } else {
-                    Icon(
-                        painter = painterResource(
-                            if (isLoggedIn) R.drawable.account else R.drawable.login
-                        ),
-                        contentDescription = null,
-                        modifier = Modifier.size(28.dp),
-                        tint = if (isLoggedIn)
-                            MaterialTheme.colorScheme.primary
-                        else
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            Spacer(Modifier.width(16.dp))
-
-            // Account Info
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = if (isLoggedIn) accountName else stringResource(R.string.login),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                if (isLoggedIn && accountEmail.isNotEmpty()) {
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        text = accountEmail,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                } else if (!isLoggedIn) {
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        text = stringResource(R.string.not_logged_in),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            // Logout Button or Arrow
-            if (isLoggedIn) {
-                FilledTonalButton(
-                    onClick = onLogout,
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text(
-                        text = stringResource(R.string.action_logout),
-                        style = MaterialTheme.typography.labelMedium
-                    )
-                }
-            } else {
-                Icon(
-                    painter = painterResource(R.drawable.arrow_forward),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
-}
-
 @Composable
 private fun SettingsSection(
     title: String? = null,
@@ -479,71 +320,6 @@ private fun SettingsClickableItem(
         )
     }
 }
-
-@Composable
-private fun SettingsToggleItem(
-    icon: Painter,
-    title: String,
-    subtitle: String? = null,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onCheckedChange(!checked) }
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Icon Container
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                painter = icon,
-                contentDescription = null,
-                modifier = Modifier.size(22.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
-        }
-
-        Spacer(Modifier.width(14.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            if (subtitle != null) {
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
-
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
-                checkedTrackColor = MaterialTheme.colorScheme.primary,
-                uncheckedThumbColor = MaterialTheme.colorScheme.outline,
-                uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
-            )
-        )
-    }
-}
-
 @Composable
 private fun UpdateAvailableItem(
     latestVersion: String,
@@ -639,62 +415,8 @@ private fun AppVersionFooter() {
 }
 
 @Composable
-private fun TokenEditorDialog(
-    innerTubeCookie: String,
-    visitorData: String,
-    dataSyncId: String,
-    accountNamePref: String,
-    accountEmail: String,
-    accountChannelHandle: String,
-    onInnerTubeCookieChange: (String) -> Unit,
-    onPoTokenChange: (String) -> Unit,
-    onVisitorDataChange: (String) -> Unit,
-    onDataSyncIdChange: (String) -> Unit,
-    onAccountNameChange: (String) -> Unit,
-    onAccountEmailChange: (String) -> Unit,
-    onAccountChannelHandleChange: (String) -> Unit,
-    onDismiss: () -> Unit
-) {
-    val text = """
-        ***INNERTUBE COOKIE*** =$innerTubeCookie
-        ***VISITOR DATA*** =$visitorData
-        ***DATASYNC ID*** =$dataSyncId
-        ***PO TOKEN*** =${YouTube.poToken.orEmpty()}
-        ***ACCOUNT NAME*** =$accountNamePref
-        ***ACCOUNT EMAIL*** =$accountEmail
-        ***ACCOUNT CHANNEL HANDLE*** =$accountChannelHandle
-    """.trimIndent()
-
-    TextFieldDialog(
-        initialTextFieldValue = TextFieldValue(text),
-        onDone = { data ->
-            data.split("\n").forEach {
-                when {
-                    it.startsWith("***INNERTUBE COOKIE*** =") -> onInnerTubeCookieChange(it.substringAfter("="))
-                    it.startsWith("***VISITOR DATA*** =") -> onVisitorDataChange(it.substringAfter("="))
-                    it.startsWith("***DATASYNC ID*** =") -> onDataSyncIdChange(it.substringAfter("="))
-                    it.startsWith("***PO TOKEN*** =") -> onPoTokenChange(it.substringAfter("="))
-                    it.startsWith("***ACCOUNT NAME*** =") -> onAccountNameChange(it.substringAfter("="))
-                    it.startsWith("***ACCOUNT EMAIL*** =") -> onAccountEmailChange(it.substringAfter("="))
-                    it.startsWith("***ACCOUNT CHANNEL HANDLE*** =") -> onAccountChannelHandleChange(it.substringAfter("="))
-                }
-            }
-        },
-        onDismiss = onDismiss,
-        singleLine = false,
-        maxLines = 20,
-        isInputValid = {
-            it.isNotEmpty() && "SAPISID" in parseCookieString(it)
-        },
-        extraContent = {
-            InfoLabel(text = stringResource(R.string.token_adv_login_description))
-        }
-    )
-}
-
-@Composable
 private fun PlaylistSelectionDialog(onDismiss: () -> Unit) {
-    val coroutineScope = rememberCoroutineScope()
+    rememberCoroutineScope()
     val context = LocalContext.current
     val (initialSelected, _) = rememberPreference(SelectedYtmPlaylistsKey, "")
     val selectedList = remember { mutableStateListOf<String>() }
@@ -715,7 +437,7 @@ private fun PlaylistSelectionDialog(onDismiss: () -> Unit) {
 
     LaunchedEffect(Unit) {
         loading = true
-        com.arturo254.opentune.innertube.YouTube
+        YouTube
             .library("FEmusic_liked_playlists")
             .completed()
             .onSuccess { page ->
