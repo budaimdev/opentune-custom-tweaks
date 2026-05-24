@@ -24,7 +24,7 @@ dependencyResolutionManagement {
 //     id("org.gradle.toolchains.foojay-resolver-convention") version("1.0.0")
 // }
 
-rootProject.name = "OpenTune"
+rootProject.name = "OpenTune Custom Tweaks"
 include(":app")
 include(":innertube")
 include(":lrclib")

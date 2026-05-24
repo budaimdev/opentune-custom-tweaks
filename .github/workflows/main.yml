@@ -26,26 +26,40 @@ jobs:
       - name: Udělení práv pro Gradle wrapper
         run: chmod +x ./gradlew
 
-      # Spustí čistý build a vygeneruje produkční APK
-      - name: Kompilace Release APK
-        run: ./gradlew clean assembleRelease
+      # Spustí čistý build a vygeneruje produkční APK i AAB (App Bundle)
+      - name: Kompilace Release APK a AAB
+        run: ./gradlew clean assembleRelease bundleRelease
 
-      # Podepsání výsledného APK pomocí tvého keystore souboru
-      - name: Podepsání Release APK
+      # Podepsání výsledných APK a AAB pomocí tvého keystore souboru
+      - name: Podepsání Release APK a AAB
         uses: r0adkll/sign-android-release@v1
         id: sign_app
         with:
-          releaseDirectory: app/build/outputs/apk/release
+          releaseDirectory: app/build/outputs
           signingKeyBase64: ${{ secrets.ANDROID_SIGNING_KEY }}
           alias: ${{ secrets.ANDROID_ALIAS }}
           keyStorePassword: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           keyPassword: ${{ secrets.ANDROID_KEY_PASSWORD }}
 
-      # Vytvoří GitHub Release a nahraje tam podepsané APK
+      # Shromáždění všech podepsaných souborů na jedno místo
+      - name: Příprava instalačních balíčků
+        run: |
+          mkdir -p release-artifacts
+          IFS=':' read -r -a files <<< "${{ steps.sign_app.outputs.signedReleaseFiles }}"
+          for file in "${files[@]}"; do
+            if [ -f "$file" ]; then
+              echo "Kopíruji podepsaný soubor: $file"
+              cp "$file" release-artifacts/
+            fi
+          done
+          echo "Seznam připravených souborů:"
+          ls -l release-artifacts
+
+      # Vytvoří GitHub Release a nahraje tam všechny podepsané balíčky
       - name: Vytvoření GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: ${{ steps.sign_app.outputs.signedReleaseFile }}
+          files: release-artifacts/*
           generate_release_notes: true # Automaticky vygeneruje changelog z commitů
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
