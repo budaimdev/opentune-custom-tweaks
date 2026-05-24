@@ -151,7 +151,6 @@ fun ColumnScope.PlayerMenu(
     val playerVolume = playerConnection.service.playerVolume.collectAsState()
     val activityResultLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { }
-    val librarySong by database.song(mediaMetadata.id).collectAsState(initial = null)
     val coroutineScope = rememberCoroutineScope()
 
     val download by LocalDownloadUtil.current.getDownload(mediaMetadata.id)
