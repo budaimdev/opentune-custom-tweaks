@@ -133,6 +133,7 @@ import kotlin.math.round
 import kotlin.math.roundToInt
 import java.util.UUID
 
+@SuppressLint("LocalContextGetResourceValueCall")
 @Composable
 fun ColumnScope.PlayerMenu(
     mediaMetadata: MediaMetadata?,
