@@ -24,38 +24,15 @@ import coil3.disk.directory
 import coil3.request.CachePolicy
 import coil3.request.allowHardware
 import coil3.request.crossfade
-import com.arturo254.opentune.constants.AccountChannelHandleKey
-import com.arturo254.opentune.constants.AccountEmailKey
-import com.arturo254.opentune.constants.AccountNameKey
-import com.arturo254.opentune.constants.ContentCountryKey
-import com.arturo254.opentune.constants.ContentLanguageKey
-import com.arturo254.opentune.constants.CountryCodeToName
-import com.arturo254.opentune.constants.CustomThemeColorKey
-import com.arturo254.opentune.constants.DataSyncIdKey
-import com.arturo254.opentune.constants.InnerTubeCookieKey
-import com.arturo254.opentune.constants.LanguageCodeToName
-import com.arturo254.opentune.constants.MaxImageCacheSizeKey
-import com.arturo254.opentune.constants.PoTokenGvsKey
-import com.arturo254.opentune.constants.PoTokenKey
-import com.arturo254.opentune.constants.PoTokenPlayerKey
-import com.arturo254.opentune.constants.ProxyEnabledKey
-import com.arturo254.opentune.constants.ProxyTypeKey
-import com.arturo254.opentune.constants.ProxyUrlKey
-import com.arturo254.opentune.constants.RandomThemeOnStartupKey
-import com.arturo254.opentune.constants.SYSTEM_DEFAULT
-import com.arturo254.opentune.constants.SmartTrimmerKey
-import com.arturo254.opentune.constants.StreamBypassProxyKey
-import com.arturo254.opentune.constants.UseLoginForBrowse
-import com.arturo254.opentune.constants.VisitorDataKey
-import com.arturo254.opentune.constants.WebClientPoTokenEnabledKey
-import com.arturo254.opentune.extensions.toEnum
-import com.arturo254.opentune.extensions.toInetSocketAddress
+import com.arturo254.opentune.constants.*
+import com.arturo254.opentune.extensions.*
 import com.arturo254.opentune.innertube.YouTube
 import com.arturo254.opentune.innertube.models.YouTubeLocale
 import com.arturo254.opentune.ui.player.CanvasArtworkPlaybackCache
 import com.arturo254.opentune.ui.screens.settings.ThemePalettes
 import com.arturo254.opentune.ui.theme.ThemeSeedPalette
 import com.arturo254.opentune.ui.theme.ThemeSeedPaletteCodec
+import com.arturo254.opentune.ui.utils.ThumbnailCache
 import com.arturo254.opentune.utils.PreferenceStore
 import com.arturo254.opentune.utils.dataStore
 import com.arturo254.opentune.utils.get
@@ -74,7 +51,7 @@ import timber.log.Timber
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.net.Proxy
-import java.util.Locale
+import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.system.exitProcess
 
@@ -86,16 +63,21 @@ class App : Application(), SingletonImageLoader.Factory {
 
     private fun currentProcessName(): String? {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            getProcessName()
+            Application.getProcessName()
         } else {
             val pid = android.os.Process.myPid()
-            val activityManager = getSystemService(ACTIVITY_SERVICE) as? ActivityManager
+            val activityManager = getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
             activityManager?.runningAppProcesses
                 ?.firstOrNull { it.pid == pid }
                 ?.processName
         }
     }
-    
+
+
+    fun initThumbnailCache(context: android.content.Context) {
+        ThumbnailCache.init(context)
+    }
+
     @OptIn(DelicateCoroutinesApi::class)
     override fun onCreate() {
         super.onCreate()
@@ -198,7 +180,7 @@ class App : Application(), SingletonImageLoader.Factory {
         }
 
         try {
-            Thread.setDefaultUncaughtExceptionHandler { _, throwable ->
+            Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
                 try {
                     val sw = StringWriter()
                     val pw = PrintWriter(sw)

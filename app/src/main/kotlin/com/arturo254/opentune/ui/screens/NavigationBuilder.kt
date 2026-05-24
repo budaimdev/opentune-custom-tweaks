@@ -7,6 +7,8 @@
 package com.arturo254.opentune.ui.screens
 
 import android.net.Uri
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -34,6 +36,7 @@ import com.arturo254.opentune.ui.screens.playlist.LocalPlaylistScreen
 import com.arturo254.opentune.ui.screens.playlist.OnlinePlaylistScreen
 import com.arturo254.opentune.ui.screens.playlist.TopPlaylistScreen
 import com.arturo254.opentune.ui.screens.search.OnlineSearchResult
+import com.arturo254.opentune.ui.screens.settings.AODSettings
 import com.arturo254.opentune.ui.screens.settings.AboutScreen
 import com.arturo254.opentune.ui.screens.settings.AppearanceSettings
 import com.arturo254.opentune.ui.screens.settings.BackupAndRestore
@@ -50,6 +53,7 @@ import com.arturo254.opentune.ui.screens.settings.StorageSettings
 import com.arturo254.opentune.ui.screens.settings.ThemeCreatorScreen
 import com.arturo254.opentune.ui.screens.settings.UpdateScreen
 
+@RequiresApi(Build.VERSION_CODES.R)
 @OptIn(ExperimentalMaterial3Api::class)
 fun NavGraphBuilder.navigationBuilder(
     navController: NavHostController,
@@ -278,6 +282,23 @@ fun NavGraphBuilder.navigationBuilder(
     composable("settings/appearance/theme_creator") {
         ThemeCreatorScreen(navController)
     }
+    composable(
+        route = "settings/appearance/always_on_display",
+        enterTransition = {
+            fadeIn(tween(300)) + slideInHorizontally { it / 3 }
+        },
+        exitTransition = {
+            fadeOut(tween(200)) + slideOutHorizontally { -it / 3 }
+        },
+        popEnterTransition = {
+            fadeIn(tween(300)) + slideInHorizontally { -it / 3 }
+        },
+        popExitTransition = {
+            fadeOut(tween(200)) + slideOutHorizontally { it / 3 }
+        },
+    ) {
+        AODSettings(navController, scrollBehavior)
+    }
     composable("settings/content") {
         ContentSettings(navController, scrollBehavior)
     }
@@ -326,6 +347,7 @@ fun NavGraphBuilder.navigationBuilder(
             startUrl = backStackEntry.arguments?.getString(LOGIN_URL_ARGUMENT)?.let(Uri::decode)
         )
     }
+
 
 // ─────────────────────────────────────────────────────────────────────────
 // Always On Display — como diálogo que cubre completamente
