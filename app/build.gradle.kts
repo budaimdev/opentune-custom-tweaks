@@ -80,7 +80,7 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.arturo254.opentune"
+        applicationId = "cz.budaimdev.opentune"
         minSdk = 26
         targetSdk = 36
         versionCode = 131
