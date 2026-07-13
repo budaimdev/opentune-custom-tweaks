@@ -1,5 +1,8 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.net.HttpURLConnection
+import java.net.URL
 import java.util.Properties
+import java.util.regex.Pattern
 
 plugins {
     alias(libs.plugins.android.application)
@@ -9,11 +12,68 @@ plugins {
     alias(libs.plugins.compose.compiler)
 }
 
+fun fetchGitCommitHash(): String {
+    // Primero intenta obtener del repositorio local
+    try {
+        val rootDir = rootProject.projectDir
+        val process = ProcessBuilder("git", "rev-parse", "--short", "HEAD")
+            .directory(rootDir)
+            .redirectErrorStream(true)
+            .start()
+        val output = process.inputStream.bufferedReader().readText().trim()
+        process.waitFor()
+        if (output.isNotEmpty() && output != "unknown" && !output.contains("fatal")) {
+            println("Git commit (local): $output")
+            return output
+        }
+    } catch (e: Exception) {
+        println("Error reading local git commit: ${e.message}")
+    }
+
+    // Fallback: Obtener del repositorio remoto de GitHub sin dependencias externas
+    return try {
+        println("Fetching latest commit from GitHub API...")
+        val url = URL("https://api.github.com/repos/Arturo254/OpenTune/commits/master")
+        val connection = url.openConnection() as HttpURLConnection
+        connection.requestMethod = "GET"
+        connection.setRequestProperty("Accept", "application/vnd.github.v3+json")
+        connection.connectTimeout = 5000
+        connection.readTimeout = 5000
+
+        val responseCode = connection.responseCode
+        if (responseCode == HttpURLConnection.HTTP_OK) {
+            val response = connection.inputStream.bufferedReader().use { it.readText() }
+
+            // Extraer el SHA del JSON manualmente con regex
+            val shaPattern = Pattern.compile("\"sha\":\"([a-f0-9]{40})\"")
+            val matcher = shaPattern.matcher(response)
+
+            if (matcher.find()) {
+                val fullSha = matcher.group(1)
+                val shortSha = fullSha.take(7)
+                println("Git commit (remote): $shortSha")
+                shortSha
+            } else {
+                println("Could not find SHA in GitHub response")
+                "unknown"
+            }
+        } else {
+            println("GitHub API returned code: $responseCode")
+            "unknown"
+        }
+    } catch (e: Exception) {
+        println("Error fetching remote git commit: ${e.message}")
+        "unknown"
+    }
+}
+
 val localProperties = Properties()
 val localPropertiesFile = rootProject.file("local.properties")
 if (localPropertiesFile.exists()) {
     localProperties.load(localPropertiesFile.inputStream())
 }
+
+val gitCommit = fetchGitCommitHash()
 
 android {
     namespace = "com.arturo254.opentune"
@@ -23,7 +83,7 @@ android {
         applicationId = "com.arturo254.opentune"
         minSdk = 26
         targetSdk = 36
-        versionCode = 130
+        versionCode = 131
         versionName = "3.0.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -45,6 +105,8 @@ android {
                 ?: System.getenv("TOGETHER_BEARER_TOKEN")
                 ?: ""
         buildConfigField("String", "TOGETHER_BEARER_TOKEN", "\"$togetherBearerToken\"")
+
+        buildConfigField("String", "GIT_COMMIT", "\"$gitCommit\"")
     }
 
     flavorDimensions += "abi"
@@ -98,6 +160,7 @@ android {
         }
         debug {
             applicationIdSuffix = ".debug"
+            versionNameSuffix = ".$gitCommit-debug"
             isDebuggable = true
         }
     }
@@ -175,6 +238,7 @@ dependencies {
     implementation(libs.backdrop)
     implementation(libs.kashif.mehmood.km.backdrop)
     implementation(libs.dev.haze)
+    implementation(libs.compose.markdown)
     compileOnly("androidx.compose.ui:ui-tooling-preview:${libs.versions.compose.get()}")
     debugImplementation("androidx.compose.ui:ui-tooling-preview:${libs.versions.compose.get()}")
     debugImplementation(libs.compose.ui.tooling)
@@ -183,7 +247,6 @@ dependencies {
 
     implementation(libs.viewmodel)
     implementation(libs.viewmodel.compose)
-
 
     implementation("io.ktor:ktor-client-content-negotiation:3.0.3")
     implementation("io.ktor:ktor-serialization-kotlinx-json:3.0.3")
@@ -218,6 +281,7 @@ dependencies {
     ksp(libs.hilt.compiler)
 
     implementation(project(":innertube"))
+    implementation(project(":spotify"))
     implementation(project(":lrclib"))
     implementation(project(":betterlyrics"))
     implementation(project(":canvas"))
@@ -234,11 +298,13 @@ dependencies {
     implementation(libs.ktor.server.websockets)
     implementation(libs.ktor.server.content.negotiation)
 
+    implementation(libs.glance.appwidget)
+    implementation(libs.glance.material3)
+
     coreLibraryDesugaring(libs.desugaring)
 
     implementation(libs.timber)
     testImplementation(libs.junit)
-    // Ensure ProcessLifecycleOwner is available for the presence manager and CI unit tests
     implementation("com.github.therealbush:translator:1.1.1")
     implementation("androidx.lifecycle:lifecycle-process:2.10.0")
     implementation("androidx.compose.material3.adaptive:adaptive:1.2.0")
@@ -252,7 +318,6 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach 
             "-opt-in=kotlin.RequiresOptIn",
             "-Xcontext-parameters"
         )
-        // Suppress warnings
         suppressWarnings.set(true)
     }
 }

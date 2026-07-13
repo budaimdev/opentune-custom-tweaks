@@ -4,12 +4,11 @@
  * Licensed Under GPL-3.0 | see git history for contributors
  */
 
-
-
 package com.arturo254.opentune.innertube.models
 
 import com.arturo254.opentune.innertube.models.WatchEndpoint.WatchEndpointMusicSupportedConfigs.WatchEndpointMusicConfig.Companion.MUSIC_VIDEO_TYPE_OMV
 import com.arturo254.opentune.innertube.models.WatchEndpoint.WatchEndpointMusicSupportedConfigs.WatchEndpointMusicConfig.Companion.MUSIC_VIDEO_TYPE_UGC
+import java.util.Locale
 
 sealed class YTItem {
     abstract val id: String
@@ -28,6 +27,22 @@ data class Album(
     val name: String,
     val id: String,
 )
+
+enum class AlbumReleaseType {
+    ALBUM,
+    SINGLE,
+    EP;
+
+    companion object {
+        fun fromLabel(label: String?): AlbumReleaseType {
+            return when (label?.trim()?.lowercase(Locale.ROOT)) {
+                "single", "singles" -> SINGLE
+                "ep", "eps" -> EP
+                else -> ALBUM
+            }
+        }
+    }
+}
 
 data class SongItem(
     override val id: String,
@@ -55,6 +70,7 @@ data class AlbumItem(
     val year: Int? = null,
     override val thumbnail: String,
     override val explicit: Boolean = false,
+    val releaseType: AlbumReleaseType = AlbumReleaseType.ALBUM,
 ) : YTItem() {
     override val shareLink: String
         get() = "https://music.youtube.com/playlist?list=$playlistId"
@@ -70,6 +86,7 @@ data class PlaylistItem(
     val shuffleEndpoint: WatchEndpoint?,
     val radioEndpoint: WatchEndpoint?,
     val isEditable: Boolean = false,
+    val description: String? = null,
 ) : YTItem() {
     override val explicit: Boolean
         get() = false
@@ -85,6 +102,8 @@ data class ArtistItem(
     val playEndpoint: WatchEndpoint? = null,
     val shuffleEndpoint: WatchEndpoint?,
     val radioEndpoint: WatchEndpoint?,
+    val subscriberCountText: String? = null,
+    val monthlyListenerCountText: String? = null,
 ) : YTItem() {
     override val explicit: Boolean
         get() = false

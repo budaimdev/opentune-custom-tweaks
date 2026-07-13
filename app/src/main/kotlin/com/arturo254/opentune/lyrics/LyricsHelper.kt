@@ -11,23 +11,24 @@ package com.arturo254.opentune.lyrics
 import android.content.Context
 import android.util.Log
 import android.util.LruCache
-import com.arturo254.opentune.utils.GlobalLog
 import com.arturo254.opentune.constants.PreferredLyricsProvider
 import com.arturo254.opentune.constants.PreferredLyricsProviderKey
+import com.arturo254.opentune.constants.ProviderOrderKey
 import com.arturo254.opentune.db.entities.LyricsEntity.Companion.LYRICS_NOT_FOUND
 import com.arturo254.opentune.extensions.toEnum
 import com.arturo254.opentune.models.MediaMetadata
+import com.arturo254.opentune.utils.GlobalLog
+import com.arturo254.opentune.utils.NetworkConnectivityObserver
 import com.arturo254.opentune.utils.dataStore
 import com.arturo254.opentune.utils.reportException
-import com.arturo254.opentune.utils.NetworkConnectivityObserver
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.async
-import kotlinx.coroutines.Dispatchers
 import javax.inject.Inject
 
 class LyricsHelper
@@ -156,19 +157,33 @@ constructor(
         currentLyricsJob?.join()
     }
 
+    private fun PreferredLyricsProvider.toLyricsProvider(): LyricsProvider = when (this) {
+        PreferredLyricsProvider.LRCLIB -> LrcLibLyricsProvider
+        PreferredLyricsProvider.BETTER_LYRICS -> BetterLyricsProvider
+    }
+
     private suspend fun orderedProviders(): List<LyricsProvider> {
-        val preferred =
-            context.dataStore.data
-                .first()[PreferredLyricsProviderKey]
-                .toEnum(PreferredLyricsProvider.LRCLIB)
+        val savedOrder = context.dataStore.data
+            .first()[ProviderOrderKey]
+            ?.split(",")
+            ?.mapNotNull { name -> runCatching { PreferredLyricsProvider.valueOf(name) }.getOrNull() }
+            ?.map { it.toLyricsProvider() }
 
-        val first =
-            when (preferred) {
-                PreferredLyricsProvider.LRCLIB -> LrcLibLyricsProvider
-                PreferredLyricsProvider.BETTER_LYRICS -> BetterLyricsProvider
+        if (!savedOrder.isNullOrEmpty()) {
+            val allProviders = savedOrder.toMutableList()
+            PreferredLyricsProvider.entries.forEach { enumProvider ->
+                val provider = enumProvider.toLyricsProvider()
+                if (provider !in allProviders) allProviders.add(provider)
             }
+            return allProviders
+        }
 
-        return listOf(first) + baseProviders.filterNot { provider -> provider == first }
+        val preferred = context.dataStore.data
+            .first()[PreferredLyricsProviderKey]
+            .toEnum(PreferredLyricsProvider.LRCLIB)
+
+        val first = preferred.toLyricsProvider()
+        return listOf(first) + baseProviders.filterNot { it == first }
     }
 
     private fun isMeaningfulLyrics(lyrics: String): Boolean {
@@ -188,6 +203,11 @@ constructor(
                 .trim { it.isWhitespace() || it == '\u00A0' }
 
         return remaining.any { !it.isWhitespace() && it != '\u00A0' }
+    }
+
+    fun cancelCurrentLyricsJob() {
+        currentLyricsJob?.cancel()
+        currentLyricsJob = null
     }
 
     companion object {

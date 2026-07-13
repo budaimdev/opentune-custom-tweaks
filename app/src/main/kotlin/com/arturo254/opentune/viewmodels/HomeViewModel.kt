@@ -11,6 +11,20 @@ package com.arturo254.opentune.viewmodels
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.arturo254.opentune.constants.HideExplicitKey
+import com.arturo254.opentune.constants.HideVideoKey
+import com.arturo254.opentune.constants.InnerTubeCookieKey
+import com.arturo254.opentune.constants.PlaylistSortType
+import com.arturo254.opentune.constants.QuickPicks
+import com.arturo254.opentune.constants.QuickPicksKey
+import com.arturo254.opentune.constants.SpeedDialSongIdsKey
+import com.arturo254.opentune.constants.YtmSyncKey
+import com.arturo254.opentune.db.MusicDatabase
+import com.arturo254.opentune.db.entities.Album
+import com.arturo254.opentune.db.entities.LocalItem
+import com.arturo254.opentune.db.entities.Playlist
+import com.arturo254.opentune.db.entities.Song
+import com.arturo254.opentune.extensions.toEnum
 import com.arturo254.opentune.innertube.YouTube
 import com.arturo254.opentune.innertube.models.PlaylistItem
 import com.arturo254.opentune.innertube.models.WatchEndpoint
@@ -21,26 +35,24 @@ import com.arturo254.opentune.innertube.pages.ExplorePage
 import com.arturo254.opentune.innertube.pages.HomePage
 import com.arturo254.opentune.innertube.utils.completed
 import com.arturo254.opentune.innertube.utils.parseCookieString
-import com.arturo254.opentune.constants.HideExplicitKey
-import com.arturo254.opentune.constants.HideVideoKey
-import com.arturo254.opentune.constants.InnerTubeCookieKey
-import com.arturo254.opentune.constants.QuickPicks
-import com.arturo254.opentune.constants.QuickPicksKey
-import com.arturo254.opentune.constants.SpeedDialSongIdsKey
-import com.arturo254.opentune.constants.YtmSyncKey
-import com.arturo254.opentune.db.MusicDatabase
-import com.arturo254.opentune.db.entities.*
-import com.arturo254.opentune.extensions.toEnum
+import com.arturo254.opentune.models.ItemMetadata
 import com.arturo254.opentune.models.SimilarRecommendation
+import com.arturo254.opentune.playback.DownloadUtil
+import com.arturo254.opentune.utils.SyncUtils
 import com.arturo254.opentune.utils.dataStore
 import com.arturo254.opentune.utils.get
 import com.arturo254.opentune.utils.getAsync
-import com.arturo254.opentune.utils.SyncUtils
 import com.arturo254.opentune.utils.reportException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import timber.log.Timber
@@ -51,6 +63,7 @@ class HomeViewModel @Inject constructor(
     @ApplicationContext val context: Context,
     val database: MusicDatabase,
     val syncUtils: SyncUtils,
+    val downloadUtil: DownloadUtil,
 ) : ViewModel() {
     val isRefreshing = MutableStateFlow(false)
     val isLoading = MutableStateFlow(false)
@@ -74,8 +87,65 @@ class HomeViewModel @Inject constructor(
     val recentActivity = MutableStateFlow<List<YTItem>?>(null)
     val recentPlaylistsDb = MutableStateFlow<List<Playlist>?>(null)
 
-    val allLocalItems = MutableStateFlow<List<LocalItem>>(emptyList())
-    val allYtItems = MutableStateFlow<List<YTItem>>(emptyList())
+    val allLocalItems = combine(
+        quickPicks,
+        forgottenFavorites,
+        keepListening
+    ) { quickPicks, forgottenFavorites, keepListening ->
+        (quickPicks.orEmpty() + forgottenFavorites.orEmpty() + keepListening.orEmpty())
+            .filter { it is Song || it is Album }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val allYtItems = combine(
+        similarRecommendations,
+        homePage
+    ) { similarRecommendations, homePage ->
+        similarRecommendations?.flatMap { it.items }.orEmpty() +
+                homePage?.sections?.flatMap { it.items }.orEmpty()
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    private val libraryMetadata = combine(
+        database.allSongs(),
+        database.allArtistsByPlayTime(),
+        database.playlists(PlaylistSortType.CREATE_DATE, true),
+    ) { songs, artists, playlists ->
+        val metadataMap = mutableMapOf<String, ItemMetadata>()
+
+        songs.forEach { song ->
+            metadataMap[song.id] = ItemMetadata(
+                isLiked = song.song.liked,
+                isInLibrary = song.song.inLibrary != null
+            )
+        }
+
+        artists.forEach { artist ->
+            if (artist.artist.bookmarkedAt != null) {
+                metadataMap[artist.id] = ItemMetadata(isLiked = true)
+            }
+        }
+
+        playlists.forEach { playlist ->
+            if (playlist.playlist.bookmarkedAt != null) {
+                metadataMap[playlist.id] = ItemMetadata(isLiked = true)
+            }
+        }
+
+        metadataMap
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
+    val allItemsMetadata = combine(
+        libraryMetadata,
+        downloadUtil.downloads
+    ) { libraryMeta, downloads ->
+        if (downloads.isEmpty()) return@combine libraryMeta
+
+        val metadataMap = libraryMeta.toMutableMap()
+        downloads.forEach { (id, download) ->
+            val current = metadataMap[id] ?: ItemMetadata()
+            metadataMap[id] = current.copy(downloadState = download.state)
+        }
+        metadataMap
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     // Account display info
     val accountName = MutableStateFlow("Guest")
@@ -182,15 +252,9 @@ class HomeViewModel @Inject constructor(
                 }
             }
 
-            allLocalItems.value = (quickPicks.value.orEmpty() + forgottenFavorites.value.orEmpty() + keepListening.value.orEmpty())
-                .filter { it is Song || it is Album }
-
             viewModelScope.launch(Dispatchers.IO) {
                 loadSimilarRecommendations()
             }
-
-            allYtItems.value = similarRecommendations.value?.flatMap { it.items }.orEmpty() +
-                    homePage.value?.sections?.flatMap { it.items }.orEmpty()
                     
             isInitialLoadComplete.value = true
         } catch (e: Exception) {
@@ -240,9 +304,6 @@ class HomeViewModel @Inject constructor(
             }
 
         similarRecommendations.value = (artistRecommendations + songRecommendations).shuffled()
-        
-        allYtItems.value = similarRecommendations.value?.flatMap { it.items }.orEmpty() +
-                homePage.value?.sections?.flatMap { it.items }.orEmpty()
     }
 
     private suspend fun songLoad() {

@@ -5,7 +5,6 @@
  */
 
 
-
 package com.arturo254.opentune.ui.screens.search
 
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -28,6 +27,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -56,6 +56,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.arturo254.opentune.LocalPlayerAwareWindowInsets
+import com.arturo254.opentune.LocalPlayerConnection
+import com.arturo254.opentune.R
+import com.arturo254.opentune.constants.AppBarHeight
+import com.arturo254.opentune.constants.SearchFilterHeight
+import com.arturo254.opentune.extensions.togglePlayPause
 import com.arturo254.opentune.innertube.YouTube.SearchFilter.Companion.FILTER_ALBUM
 import com.arturo254.opentune.innertube.YouTube.SearchFilter.Companion.FILTER_ARTIST
 import com.arturo254.opentune.innertube.YouTube.SearchFilter.Companion.FILTER_COMMUNITY_PLAYLIST
@@ -68,12 +74,7 @@ import com.arturo254.opentune.innertube.models.PlaylistItem
 import com.arturo254.opentune.innertube.models.SongItem
 import com.arturo254.opentune.innertube.models.WatchEndpoint
 import com.arturo254.opentune.innertube.models.YTItem
-import com.arturo254.opentune.LocalPlayerAwareWindowInsets
-import com.arturo254.opentune.LocalPlayerConnection
-import com.arturo254.opentune.R
-import com.arturo254.opentune.constants.AppBarHeight
-import com.arturo254.opentune.constants.SearchFilterHeight
-import com.arturo254.opentune.extensions.togglePlayPause
+import com.arturo254.opentune.innertube.pages.SearchSummary
 import com.arturo254.opentune.models.toMediaMetadata
 import com.arturo254.opentune.playback.queues.YouTubeQueue
 import com.arturo254.opentune.ui.component.ChipsRow
@@ -113,6 +114,36 @@ fun OnlineSearchResult(
             }
         }
     }
+    val allModeSections =
+        buildList<SearchSummary> {
+            searchSummary?.summaries?.firstOrNull()?.takeIf { it.items.isNotEmpty() }?.let(::add)
+
+            listOf(
+                FILTER_SONG to stringResource(R.string.filter_songs),
+                FILTER_VIDEO to stringResource(R.string.filter_videos),
+                FILTER_ALBUM to stringResource(R.string.filter_albums),
+                FILTER_ARTIST to stringResource(R.string.filter_artists),
+                FILTER_COMMUNITY_PLAYLIST to stringResource(R.string.filter_community_playlists),
+                FILTER_FEATURED_PLAYLIST to stringResource(R.string.filter_featured_playlists),
+            ).forEach { (sectionFilter, sectionTitle) ->
+                viewModel.viewStateMap[sectionFilter.value]
+                    ?.items
+                    ?.takeIf { it.isNotEmpty() }
+                    ?.let { items ->
+                        add(SearchSummary(title = sectionTitle, items = items))
+                    }
+            }
+        }
+    val isAllModeLoaded =
+        searchSummary != null ||
+                listOf(
+                    FILTER_SONG,
+                    FILTER_VIDEO,
+                    FILTER_ALBUM,
+                    FILTER_ARTIST,
+                    FILTER_COMMUNITY_PLAYLIST,
+                    FILTER_FEATURED_PLAYLIST,
+                ).all { viewModel.viewStateMap.containsKey(it.value) }
 
     LaunchedEffect(lazyListState) {
         snapshotFlow {
@@ -160,11 +191,11 @@ fun OnlineSearchResult(
         YouTubeListItem(
             item = item,
             isActive =
-            when (item) {
-                is SongItem -> mediaMetadata?.id == item.id
-                is AlbumItem -> mediaMetadata?.album?.id == item.id
-                else -> false
-            },
+                when (item) {
+                    is SongItem -> mediaMetadata?.id == item.id
+                    is AlbumItem -> mediaMetadata?.album?.id == item.id
+                    else -> false
+                },
             isPlaying = isPlaying,
             trailingContent = {
                 IconButton(
@@ -177,43 +208,43 @@ fun OnlineSearchResult(
                 }
             },
             modifier =
-            Modifier
-                .combinedClickable(
-                    onClick = {
-                        when (item) {
-                            is SongItem -> {
-                                if (item.id == mediaMetadata?.id) {
-                                    playerConnection.player.togglePlayPause()
-                                } else {
-                                    playerConnection.playQueue(
-                                        YouTubeQueue(
-                                            WatchEndpoint(videoId = item.id),
-                                            item.toMediaMetadata()
+                Modifier
+                    .combinedClickable(
+                        onClick = {
+                            when (item) {
+                                is SongItem -> {
+                                    if (item.id == mediaMetadata?.id) {
+                                        playerConnection.player.togglePlayPause()
+                                    } else {
+                                        playerConnection.playQueue(
+                                            YouTubeQueue(
+                                                WatchEndpoint(videoId = item.id),
+                                                item.toMediaMetadata()
+                                            )
                                         )
-                                    )
+                                    }
                                 }
-                            }
 
-                            is AlbumItem -> navController.navigate("album/${item.id}")
-                            is ArtistItem -> navController.navigate("artist/${item.id}")
-                            is PlaylistItem -> navController.navigate("online_playlist/${item.id}")
-                        }
-                    },
-                    onLongClick = longClick,
-                )
-                .animateItem(),
+                                is AlbumItem -> navController.navigate("album/${item.id}")
+                                is ArtistItem -> navController.navigate("artist/${item.id}")
+                                is PlaylistItem -> navController.navigate("online_playlist/${item.id}")
+                            }
+                        },
+                        onLongClick = longClick,
+                    )
+                    .animateItem(),
         )
     }
 
     LazyColumn(
         state = lazyListState,
         contentPadding =
-        LocalPlayerAwareWindowInsets.current
-            .add(WindowInsets(top = SearchFilterHeight + 8.dp))
-            .asPaddingValues(),
+            LocalPlayerAwareWindowInsets.current
+                .add(WindowInsets(top = SearchFilterHeight + 8.dp))
+                .asPaddingValues(),
     ) {
         if (searchFilter == null) {
-            searchSummary?.summaries?.forEachIndexed { index, summary ->
+            allModeSections.forEachIndexed { index, summary ->
                 if (index > 0) {
                     item(key = "divider_$index") {
                         HorizontalDivider(
@@ -224,7 +255,7 @@ fun OnlineSearchResult(
                     }
                 }
 
-                item {
+                item(key = "section_header_${summary.title}_$index") {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
@@ -246,18 +277,19 @@ fun OnlineSearchResult(
                     }
                 }
 
-                items(
+                itemsIndexed(
                     items = summary.items,
-                    key = { "${summary.title}/${it.id}/${summary.items.indexOf(it)}" },
-                    itemContent = ytItemContent,
-                )
+                    key = { itemIndex, item -> "${summary.title}/${item.id}/$itemIndex" },
+                ) { _, item ->
+                    ytItemContent(item)
+                }
 
-                item {
+                item(key = "section_spacer_${summary.title}_$index") {
                     Spacer(Modifier.height(4.dp))
                 }
             }
 
-            if (searchSummary?.summaries?.isEmpty() == true) {
+            if (allModeSections.isEmpty() && isAllModeLoaded) {
                 item {
                     EmptyPlaceholder(
                         icon = R.drawable.search,
@@ -292,7 +324,7 @@ fun OnlineSearchResult(
             }
         }
 
-        if (searchFilter == null && searchSummary == null || searchFilter != null && itemsPage == null) {
+        if (searchFilter == null && allModeSections.isEmpty() && !isAllModeLoaded || searchFilter != null && itemsPage == null) {
             item {
                 ShimmerHost {
                     repeat(8) {
@@ -308,20 +340,23 @@ fun OnlineSearchResult(
         tonalElevation = 0.dp,
         shadowElevation = 1.dp,
         modifier = Modifier
-            .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top).add(WindowInsets(top = AppBarHeight)))
+            .windowInsetsPadding(
+                WindowInsets.systemBars.only(WindowInsetsSides.Top)
+                    .add(WindowInsets(top = AppBarHeight))
+            )
             .fillMaxWidth()
     ) {
         ChipsRow(
             chips =
-            listOf(
-                null to stringResource(R.string.filter_all),
-                FILTER_SONG to stringResource(R.string.filter_songs),
-                FILTER_VIDEO to stringResource(R.string.filter_videos),
-                FILTER_ALBUM to stringResource(R.string.filter_albums),
-                FILTER_ARTIST to stringResource(R.string.filter_artists),
-                FILTER_COMMUNITY_PLAYLIST to stringResource(R.string.filter_community_playlists),
-                FILTER_FEATURED_PLAYLIST to stringResource(R.string.filter_featured_playlists),
-            ),
+                listOf(
+                    null to stringResource(R.string.filter_all),
+                    FILTER_SONG to stringResource(R.string.filter_songs),
+                    FILTER_VIDEO to stringResource(R.string.filter_videos),
+                    FILTER_ALBUM to stringResource(R.string.filter_albums),
+                    FILTER_ARTIST to stringResource(R.string.filter_artists),
+                    FILTER_COMMUNITY_PLAYLIST to stringResource(R.string.filter_community_playlists),
+                    FILTER_FEATURED_PLAYLIST to stringResource(R.string.filter_featured_playlists),
+                ),
             currentValue = searchFilter,
             onValueUpdate = {
                 if (viewModel.filter.value != it) {

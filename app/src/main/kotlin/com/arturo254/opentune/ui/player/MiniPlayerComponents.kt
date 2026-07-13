@@ -50,7 +50,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -91,7 +91,7 @@ fun SwipeableMiniPlayerBox(
     content: @Composable (Float) -> Unit
 ) {
     val offsetXAnimatable = remember { Animatable(0f) }
-    var dragStartTime by remember { mutableLongStateOf(0L) }
+    var dragStartTime by remember { mutableStateOf(0L) }
     var totalDragDistance by remember { mutableFloatStateOf(0f) }
 
     val animationSpec = spring<Float>(
@@ -166,12 +166,6 @@ fun SwipeableMiniPlayerBox(
                                     val isRightSwipe = currentOffset > 0
                                     val canSkipPrevious = playerConnection.player.previousMediaItemIndex != -1
                                     val canSkipNext = playerConnection.player.nextMediaItemIndex != -1
-
-                                    if (isRightSwipe && canSkipPrevious) {
-                                        playerConnection.player.seekToPreviousMediaItem()
-                                    } else if (!isRightSwipe && canSkipNext) {
-                                        playerConnection.player.seekToNext()
-                                    }
                                 }
 
                                 coroutineScope.launch {
@@ -409,8 +403,7 @@ private fun MiniPlayerTransportControls(
 fun NewMiniPlayerContent(
     position: Long,
     duration: Long,
-    playerConnection: PlayerConnection,
-    pureBlack: Boolean
+    playerConnection: PlayerConnection
 ) {
     val isPlaying by playerConnection.isPlaying.collectAsState()
     val playbackState by playerConnection.playbackState.collectAsState()

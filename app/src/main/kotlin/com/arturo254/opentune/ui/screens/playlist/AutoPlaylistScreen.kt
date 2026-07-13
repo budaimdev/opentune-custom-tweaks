@@ -30,12 +30,13 @@ import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -83,10 +84,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastSumBy
-import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.media3.exoplayer.offline.Download
-import androidx.media3.exoplayer.offline.DownloadRequest
 import androidx.media3.exoplayer.offline.DownloadService
 import androidx.navigation.NavController
 import androidx.palette.graphics.Palette
@@ -95,17 +94,15 @@ import coil3.imageLoader
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
 import coil3.toBitmap
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import com.arturo254.opentune.LocalDownloadUtil
 import com.arturo254.opentune.LocalPlayerAwareWindowInsets
 import com.arturo254.opentune.LocalPlayerConnection
 import com.arturo254.opentune.R
-import com.arturo254.opentune.constants.DisableBlurKey
-import com.arturo254.opentune.constants.HideExplicitKey
 import com.arturo254.opentune.constants.AutoPlaylistSongSortDescendingKey
 import com.arturo254.opentune.constants.AutoPlaylistSongSortType
 import com.arturo254.opentune.constants.AutoPlaylistSongSortTypeKey
+import com.arturo254.opentune.constants.DisableBlurKey
+import com.arturo254.opentune.constants.HideExplicitKey
 import com.arturo254.opentune.constants.YtmSyncKey
 import com.arturo254.opentune.db.entities.Song
 import com.arturo254.opentune.extensions.toMediaItem
@@ -121,6 +118,7 @@ import com.arturo254.opentune.ui.component.SongListItem
 import com.arturo254.opentune.ui.component.SortHeader
 import com.arturo254.opentune.ui.menu.SelectionSongMenu
 import com.arturo254.opentune.ui.menu.SongMenu
+import com.arturo254.opentune.ui.screens.Screens
 import com.arturo254.opentune.ui.theme.PlayerColorExtractor
 import com.arturo254.opentune.ui.utils.ItemWrapper
 import com.arturo254.opentune.ui.utils.backToMain
@@ -128,8 +126,13 @@ import com.arturo254.opentune.utils.makeTimeString
 import com.arturo254.opentune.utils.rememberEnumPreference
 import com.arturo254.opentune.utils.rememberPreference
 import com.arturo254.opentune.viewmodels.AutoPlaylistViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
-@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
+@OptIn(
+    ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class,
+    ExperimentalMaterial3ExpressiveApi::class
+)
 @Composable
 fun AutoPlaylistScreen(
     navController: NavController,
@@ -501,7 +504,9 @@ fun AutoPlaylistScreen(
                                         .shadow(
                                             elevation = 24.dp,
                                             shape = RoundedCornerShape(16.dp),
-                                            ambientColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                                            ambientColor = MaterialTheme.colorScheme.primary.copy(
+                                                alpha = 0.3f
+                                            ),
                                             spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
                                         )
                                 ) {
@@ -565,86 +570,35 @@ fun AutoPlaylistScreen(
 
                                 Spacer(modifier = Modifier.height(20.dp))
 
-                                // Action buttons row
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+                                    horizontalArrangement = Arrangement.spacedBy(
+                                        ButtonGroupDefaults.ConnectedSpaceBetween,
+                                        Alignment.CenterHorizontally
+                                    ),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    // Download Button
                                     Surface(
-                                        onClick = {
-                                            when (downloadState) {
-                                                Download.STATE_COMPLETED -> {
-                                                    showRemoveDownloadDialog = true
-                                                }
-                                                Download.STATE_DOWNLOADING -> {
-                                                    songs!!.forEach { song ->
-                                                        DownloadService.sendRemoveDownload(
-                                                            context,
-                                                            ExoDownloadService::class.java,
-                                                            song.song.id,
-                                                            false,
-                                                        )
-                                                    }
-                                                }
-                                                else -> {
-                                                    songs!!.forEach { song ->
-                                                        val downloadRequest =
-                                                            DownloadRequest
-                                                                .Builder(
-                                                                    song.song.id,
-                                                                    song.song.id.toUri(),
-                                                                )
-                                                                .setCustomCacheKey(song.song.id)
-                                                                .setData(song.song.title.toByteArray())
-                                                                .build()
-                                                        DownloadService.sendAddDownload(
-                                                            context,
-                                                            ExoDownloadService::class.java,
-                                                            downloadRequest,
-                                                            false,
-                                                        )
-                                                    }
-                                                }
-                                            }
-                                        },
-                                        shape = CircleShape,
+                                        onClick = { navController.navigate(Screens.DownloadQueue.route) },
+                                        shape = ButtonGroupDefaults.connectedLeadingButtonShapes().shape,
                                         color = MaterialTheme.colorScheme.surfaceVariant,
-                                        modifier = Modifier.size(48.dp)
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(48.dp)
                                     ) {
                                         Box(
                                             modifier = Modifier.fillMaxSize(),
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            when (downloadState) {
-                                                Download.STATE_COMPLETED -> {
-                                                    Icon(
-                                                        painter = painterResource(R.drawable.offline),
-                                                        contentDescription = null,
-                                                        tint = MaterialTheme.colorScheme.primary,
-                                                        modifier = Modifier.size(24.dp)
-                                                    )
-                                                }
-                                                Download.STATE_DOWNLOADING -> {
-                                                    CircularProgressIndicator(
-                                                        strokeWidth = 2.dp,
-                                                        modifier = Modifier.size(24.dp)
-                                                    )
-                                                }
-                                                else -> {
-                                                    Icon(
-                                                        painter = painterResource(R.drawable.download),
-                                                        contentDescription = null,
-                                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                        modifier = Modifier.size(24.dp)
-                                                    )
-                                                }
-                                            }
+                                            Icon(
+                                                painter = painterResource(R.drawable.downloading),
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.size(24.dp)
+                                            )
                                         }
                                     }
 
-                                    // Play Button
                                     Button(
                                         onClick = {
                                             playerConnection.playQueue(
@@ -654,7 +608,11 @@ fun AutoPlaylistScreen(
                                                 ),
                                             )
                                         },
-                                        shape = RoundedCornerShape(24.dp),
+                                        shape = ButtonGroupDefaults.connectedMiddleButtonShapes().shape,
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = MaterialTheme.colorScheme.primary,
+                                            contentColor = MaterialTheme.colorScheme.onPrimary
+                                        ),
                                         modifier = Modifier
                                             .weight(1f)
                                             .height(48.dp)
@@ -666,7 +624,6 @@ fun AutoPlaylistScreen(
                                         )
                                     }
 
-                                    // Shuffle Button
                                     Button(
                                         onClick = {
                                             playerConnection.playQueue(
@@ -676,7 +633,11 @@ fun AutoPlaylistScreen(
                                                 ),
                                             )
                                         },
-                                        shape = RoundedCornerShape(24.dp),
+                                        shape = ButtonGroupDefaults.connectedMiddleButtonShapes().shape,
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = MaterialTheme.colorScheme.primary,
+                                            contentColor = MaterialTheme.colorScheme.onPrimary
+                                        ),
                                         modifier = Modifier
                                             .weight(1f)
                                             .height(48.dp)
@@ -688,16 +649,17 @@ fun AutoPlaylistScreen(
                                         )
                                     }
 
-                                    // Add to Queue Button
                                     Surface(
                                         onClick = {
                                             playerConnection.addToQueue(
                                                 items = songs!!.map { it.toMediaItem() },
                                             )
                                         },
-                                        shape = CircleShape,
+                                        shape = ButtonGroupDefaults.connectedTrailingButtonShapes().shape,
                                         color = MaterialTheme.colorScheme.surfaceVariant,
-                                        modifier = Modifier.size(48.dp)
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(48.dp)
                                     ) {
                                         Box(
                                             modifier = Modifier.fillMaxSize(),

@@ -15,10 +15,6 @@ import com.arturo254.opentune.constants.PlayerStreamClient
 import com.arturo254.opentune.innertube.NewPipeUtils
 import com.arturo254.opentune.innertube.YouTube
 import com.arturo254.opentune.innertube.models.YouTubeClient
-import com.arturo254.opentune.innertube.models.YouTubeClient.Companion.IOS
-import com.arturo254.opentune.innertube.models.YouTubeClient.Companion.TVHTML5_SIMPLY_EMBEDDED_PLAYER
-import com.arturo254.opentune.innertube.models.YouTubeClient.Companion.WEB_REMIX
-import com.arturo254.opentune.innertube.models.response.PlayerResponse
 import com.arturo254.opentune.innertube.models.YouTubeClient.Companion.ANDROID_CREATOR
 import com.arturo254.opentune.innertube.models.YouTubeClient.Companion.ANDROID_MUSIC
 import com.arturo254.opentune.innertube.models.YouTubeClient.Companion.ANDROID_TESTSUITE
@@ -26,13 +22,19 @@ import com.arturo254.opentune.innertube.models.YouTubeClient.Companion.ANDROID_U
 import com.arturo254.opentune.innertube.models.YouTubeClient.Companion.ANDROID_VR_1_43_32
 import com.arturo254.opentune.innertube.models.YouTubeClient.Companion.ANDROID_VR_1_61_48
 import com.arturo254.opentune.innertube.models.YouTubeClient.Companion.ANDROID_VR_NO_AUTH
-import com.arturo254.opentune.innertube.models.YouTubeClient.Companion.IPADOS
+import com.arturo254.opentune.innertube.models.YouTubeClient.Companion.IOS
 import com.arturo254.opentune.innertube.models.YouTubeClient.Companion.IOS_MUSIC
+import com.arturo254.opentune.innertube.models.YouTubeClient.Companion.IPADOS
 import com.arturo254.opentune.innertube.models.YouTubeClient.Companion.MOBILE
 import com.arturo254.opentune.innertube.models.YouTubeClient.Companion.TVHTML5
+import com.arturo254.opentune.innertube.models.YouTubeClient.Companion.TVHTML5_SIMPLY_EMBEDDED_PLAYER
 import com.arturo254.opentune.innertube.models.YouTubeClient.Companion.VISIONOS
 import com.arturo254.opentune.innertube.models.YouTubeClient.Companion.WEB
 import com.arturo254.opentune.innertube.models.YouTubeClient.Companion.WEB_CREATOR
+import com.arturo254.opentune.innertube.models.YouTubeClient.Companion.WEB_REMIX
+import com.arturo254.opentune.innertube.models.response.PlayerResponse
+import com.arturo254.opentune.utils.YTPlayerUtils.MAIN_CLIENT
+import com.arturo254.opentune.utils.YTPlayerUtils.STREAM_FALLBACK_CLIENTS
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import timber.log.Timber
@@ -136,6 +138,12 @@ object YTPlayerUtils {
         }
         return true
     }
+
+    class InvalidPlaybackLoginContextException(
+        val videoId: String,
+        val targetUrl: String,
+        cause: Throwable,
+    ) : IllegalStateException("Invalid YouTube Music playback login context", cause)
 
     private fun normalizeStreamClientKey(clientKey: String?): String {
         return clientKey?.trim()?.takeIf { it.isNotBlank() }?.uppercase(Locale.US).orEmpty()

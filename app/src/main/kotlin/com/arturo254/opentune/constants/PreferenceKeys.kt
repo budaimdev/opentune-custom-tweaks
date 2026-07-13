@@ -32,12 +32,29 @@ val UseNewLibraryDesignKey = booleanPreferencesKey("useNewLibraryDesign")
 val UseNewMiniPlayerDesignKey = booleanPreferencesKey("useNewMiniPlayerDesign")
 val HidePlayerThumbnailKey = booleanPreferencesKey("hidePlayerThumbnail")
 val OpenTuneCanvasKey = booleanPreferencesKey("OpenTuneCanvas")
+
+// Fuente del canvas: AUTO, APPLE_MUSIC, OPENTUNE, TIDAL
+val CanvasSourceKey = stringPreferencesKey("canvasSource")
 val ThumbnailCornerRadiusKey = floatPreferencesKey("thumbnailCornerRadius")
 val CropThumbnailToSquareKey = booleanPreferencesKey("cropThumbnailToSquare")
 val SeekExtraSeconds = booleanPreferencesKey("seekExtraSeconds")
 val DisableBlurKey = booleanPreferencesKey("disableBlur")
 val BlurRadiusKey = floatPreferencesKey("blurRadius")
 val MiniPlayerLastAnchorKey = intPreferencesKey("miniPlayerLastAnchor")
+val EnableHapticFeedbackKey = booleanPreferencesKey("enableHapticFeedback")
+val PlayerFullscreenKey = booleanPreferencesKey("player_fullscreen")
+
+val ProviderOrderKey = stringPreferencesKey("lyrics_provider_order")
+
+val DefaultProviderOrder = listOf(
+    PreferredLyricsProvider.LRCLIB,
+    PreferredLyricsProvider.BETTER_LYRICS,
+)
+
+fun PreferredLyricsProvider.displayName(): String = when (this) {
+    PreferredLyricsProvider.LRCLIB -> "LrcLib"
+    PreferredLyricsProvider.BETTER_LYRICS -> "BetterLyrics"
+}
 
 enum class SliderStyle {
     Standard,
@@ -72,7 +89,7 @@ val TogetherAllowGuestsToControlPlaybackKey = booleanPreferencesKey("together_al
 val TogetherRequireHostApprovalToJoinKey = booleanPreferencesKey("together_require_host_approval_to_join")
 val TogetherLastJoinLinkKey = stringPreferencesKey("together_last_join_link")
 val TogetherWelcomeShownKey = booleanPreferencesKey("together_welcome_shown")
-    
+
 // ListenBrainz scrobbling
 val ListenBrainzEnabledKey = booleanPreferencesKey("listenbrainz_enabled")
 val ListenBrainzTokenKey = stringPreferencesKey("listenbrainz_token")
@@ -159,6 +176,8 @@ val MixSortDescendingKey = booleanPreferencesKey("albumSortDescending")
 val SongFilterKey = stringPreferencesKey("songFilter")
 val ArtistFilterKey = stringPreferencesKey("artistFilter")
 val AlbumFilterKey = stringPreferencesKey("albumFilter")
+val AudioCrossfadeGaplessKey = booleanPreferencesKey("audio_crossfade_gapless")
+
 val ArtistViewTypeKey = stringPreferencesKey("artistViewType")
 val AlbumViewTypeKey = stringPreferencesKey("albumViewType")
 val PlaylistEditLockKey = booleanPreferencesKey("playlistEditLock")
@@ -330,7 +349,8 @@ enum class PlayerDesignStyle {
     V4,
     V5,
     V6,
-    V7
+    V7,
+    V8
 }
 
 enum class PlayerBackgroundStyle {
@@ -542,6 +562,13 @@ enum class AodArtShape {
     PETAL,
 }
 
+enum class AodControlStyle {
+    ROUNDED,
+    SQUARE,
+    ACCENT,
+    MINIMAL_FLAT,
+}
+
 val AodStyleKey = stringPreferencesKey("aod_style")
 val AodArtShapeKey = stringPreferencesKey("aod_art_shape")
 
@@ -559,3 +586,64 @@ val AodAutoActivationKey = intPreferencesKey("aod_auto_activation_seconds")
 
 // AOD Fullscreen mode (hide system UI)
 val AodFullscreenKey = booleanPreferencesKey("aod_fullscreen_mode")
+
+/** Intensidad del spotlight (0.0 – 1.0) */
+val AodSpotlightIntensityKey = floatPreferencesKey("aod_spotlight_intensity")
+
+/** Pulso / breathing del spotlight */
+val AodSpotlightPulseKey = booleanPreferencesKey("aod_spotlight_pulse")
+
+/** Duración de las transiciones entre canciones en ms */
+val AodTransitionDurationKey = intPreferencesKey("aod_transition_duration")
+
+/** Estilo visual de los botones de control */
+val AodControlStyleKey = stringPreferencesKey("aod_control_style")
+
+/** Escala de texto global (0.8 – 1.4) */
+val AodTextScaleKey = floatPreferencesKey("aod_text_scale")
+
+/** Mostrar reloj del sistema en el AOD */
+val AodShowClockKey = booleanPreferencesKey("aod_show_clock")
+
+val AodClockFormatKey = booleanPreferencesKey("aod_clock_24h")
+
+val LyricsLineBlurKey = booleanPreferencesKey("lyricsLineBlur")
+
+val LyricsSyncOffsetKey = intPreferencesKey("lyrics_sync_offset")
+
+
+enum class CanvasSource {
+    AUTO,
+    APPLE_MUSIC,
+    TIDAL,
+    CUSTOM
+}
+
+// Home Screen Widget (OpenTunePlayerWidget)
+
+enum class WidgetBackgroundMode {
+    BLUR,
+    DOMINANT_COLOR,
+    SOLID,
+}
+
+val WidgetBackgroundModeKey = stringPreferencesKey("widget_background_mode")
+
+val WidgetScrimOpacityKey = floatPreferencesKey("widget_scrim_opacity")
+
+val WidgetCornerRadiusKey = floatPreferencesKey("widget_corner_radius")
+
+val WidgetShowProgressBarKey = booleanPreferencesKey("widget_show_progress_bar")
+
+
+val SpotifySpDcKey = stringPreferencesKey("spotify_sp_dc")
+val SpotifySpKeyKey = stringPreferencesKey("spotify_sp_key")
+val SpotifyAccessTokenKey = stringPreferencesKey("spotify_access_token")
+val SpotifyAccessTokenExpiresAtKey = longPreferencesKey("spotify_access_token_expires_at")
+val SpotifyAccountNameKey = stringPreferencesKey("spotify_account_name")
+val SpotifyAccountAvatarUrlKey = stringPreferencesKey("spotify_account_avatar_url")
+val ShowSpotifyPlaylistsKey = booleanPreferencesKey("show_spotify_playlists")
+val SpotifyLibraryPlaylistsCacheKey = stringPreferencesKey("spotify_library_playlists_cache")
+
+val CustomCanvasEnabledKey = booleanPreferencesKey("custom_canvas_enabled")
+val CustomCanvasApiUrlKey = stringPreferencesKey("custom_canvas_api_url")

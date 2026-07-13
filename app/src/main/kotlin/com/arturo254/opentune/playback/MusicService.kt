@@ -314,6 +314,10 @@ class MusicService :
     private val persistentStateLock = Any()
     @Volatile
     private var suppressAutoPlayback = false
+    private var lastPresenceToken: String? = null
+
+    @Volatile
+    private var lastPresenceUpdateTime = 0L
     @Volatile
     private var lastLoginRecoveryPrompt: Pair<String, Long>? = null
 
@@ -405,7 +409,6 @@ class MusicService :
     private var bassBoost: BassBoost? = null
     private var virtualizer: Virtualizer? = null
     private var loudnessEnhancer: LoudnessEnhancer? = null
-
 
     val automixItems = MutableStateFlow<List<MediaItem>>(emptyList())
     val automixLoading = MutableStateFlow(false)
@@ -717,6 +720,10 @@ class MusicService :
             }
         }
 
+        currentSong.debounce(300).collect(scope) { song ->
+            updateNotification()
+        }
+
         combine(
             currentMediaMetadata.distinctUntilChangedBy { it?.id },
             dataStore.data.map { it[ShowLyricsKey] ?: false }.distinctUntilChanged(),
@@ -1023,6 +1030,16 @@ class MusicService :
                     }
                 }
             }
+        }
+    }
+
+    private fun canUpdatePresence(): Boolean {
+        val now = System.currentTimeMillis()
+        synchronized(this) {
+            return if (now - lastPresenceUpdateTime > MIN_PRESENCE_UPDATE_INTERVAL) {
+                lastPresenceUpdateTime = now
+                true
+            } else false
         }
     }
 
@@ -3420,6 +3437,7 @@ class MusicService :
     val timelineEmpty = player.currentTimeline.isEmpty || player.mediaItemCount == 0 || player.currentMediaItem == null
     currentMediaMetadata.value = if (timelineEmpty) null else (mediaItem?.metadata ?: player.currentMetadata)
 
+
     if (!timelineEmpty &&
         dataStore.get(AutoLoadMoreKey, true) &&
         reason != Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT &&
@@ -3496,13 +3514,13 @@ class MusicService :
             }
         }
     }
+
     scope.launch {
         val shouldSave = withContext(Dispatchers.IO) { dataStore.get(PersistentQueueKey, true) }
         if (shouldSave) {
             saveQueueToDisk()
         }
     }
-
 }
 
     override fun onPlaybackStateChanged(@Player.State playbackState: Int) {
@@ -3590,32 +3608,6 @@ class MusicService :
                     }
                 }
             }
-        }
-    }
-
-
-    scope.launch {
-        try {
-            // Obtain the freshest Song from DB using current media item id to avoid stale currentSong.value
-            val mediaId = player.currentMediaItem?.mediaId
-            val song = if (mediaId != null) withContext(Dispatchers.IO) { database.song(mediaId).first() } else null
-            val finalSong = song ?: player.currentMetadata?.let { createTransientSongFromMedia(it) }
-
-            try {
-                val lbEnabled = withContext(Dispatchers.IO) { dataStore.get(ListenBrainzEnabledKey, false) }
-                val lbToken = withContext(Dispatchers.IO) { dataStore.get(ListenBrainzTokenKey, "") }
-                if (lbEnabled && !lbToken.isNullOrBlank()) {
-                    scope.launch(Dispatchers.IO) {
-                        try {
-                            ListenBrainzManager.submitPlayingNow(this@MusicService, lbToken, finalSong, player.currentPosition)
-                        } catch (ie: Exception) {
-                            Timber.tag("MusicService").v(ie, "ListenBrainz playing_now submit failed")
-                        }
-                    }
-                }
-            } catch (_: Exception) {}
-        } catch (e: Exception) {
-            Timber.tag("MusicService").v(e, "ListenBrainz playing_now update failed")
         }
     }
 }
@@ -3714,30 +3706,7 @@ class MusicService :
             if (crossfadeAudio?.isCrossfading() != true) {
                 currentMediaMetadata.value = player.currentMetadata
             }
-            // immediate update when media item transitions
-            scope.launch {
-                try {
-                    val mediaId = player.currentMediaItem?.mediaId
-                    val song = if (mediaId != null) withContext(Dispatchers.IO) { database.song(mediaId).first() } else null
-                    val finalSong = song ?: player.currentMetadata?.let { createTransientSongFromMedia(it) }
-
-                    try {
-                        val lbEnabled = dataStore.get(ListenBrainzEnabledKey, false)
-                        val lbToken = dataStore.get(ListenBrainzTokenKey, "")
-                        if (lbEnabled && !lbToken.isNullOrBlank()) {
-                            scope.launch(Dispatchers.IO) {
-                                try {
-                                    ListenBrainzManager.submitPlayingNow(this@MusicService, lbToken, finalSong, player.currentPosition)
-                                } catch (ie: Exception) {
-                                    Timber.tag("MusicService").v(ie, "ListenBrainz playing_now submit failed on transition")
-                                }
-                            }
-                        }
-                    } catch (_: Exception) {}
-                } catch (e: Exception) {
-                    Timber.tag("MusicService").v(e, "ListenBrainz playing_now update failed on transition")
-                }
-            }
+           // immediate update when media item transitions to avoid stale presence
         }
 
         // Also handle immediate update for play state and media item transition events explicitly
@@ -3750,29 +3719,6 @@ class MusicService :
             val currentMetadata = player.currentMetadata
             val currentPosition = player.currentPosition
             val isPlaying = player.isPlaying
-
-            scope.launch {
-                try {
-                    val song = if (currentMediaId != null) withContext(Dispatchers.IO) { database.song(currentMediaId).first() } else null
-                    val finalSong = song ?: currentMetadata?.let { createTransientSongFromMedia(it) }
-
-                    try {
-                        val lbEnabled = withContext(Dispatchers.IO) { dataStore.get(ListenBrainzEnabledKey, false) }
-                        val lbToken = withContext(Dispatchers.IO) { dataStore.get(ListenBrainzTokenKey, "") }
-                        if (lbEnabled && !lbToken.isNullOrBlank()) {
-                            scope.launch(Dispatchers.IO) {
-                                try {
-                                    ListenBrainzManager.submitPlayingNow(this@MusicService, lbToken, finalSong, currentPosition)
-                                } catch (ie: Exception) {
-                                    Timber.tag("MusicService").v(ie, "ListenBrainz playing_now submit failed for isPlaying/mediaTransition")
-                                }
-                            }
-                        }
-                    } catch (_: Exception) {}
-                } catch (e: Exception) {
-                    Timber.tag("MusicService").v(e, "ListenBrainz playing_now update failed for isPlaying/mediaTransition")
-                }
-            }
         }
 
 
@@ -4537,7 +4483,6 @@ class MusicService :
         try {
             scope.launch { stopTogetherInternal() }
         } catch (_: Exception) {}
-
         try {
             connectivityObserver.unregister()
         } catch (_: Exception) {}
@@ -4631,6 +4576,9 @@ class MusicService :
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
+        // When the user clears the app from Recents, ensure we clear Discord rich presence
+        lastPresenceToken = null
+
         val stopMusicOnTaskClearEnabled = dataStore.get(StopMusicOnTaskClearKey, false)
 
         try {
@@ -4709,5 +4657,6 @@ class MusicService :
         const val PERSISTENT_AUTOMIX_FILE = "persistent_automix.data"
         const val PERSISTENT_PLAYER_STATE_FILE = "persistent_player_state.data"
         const val MAX_CONSECUTIVE_ERR = 5
+        const val MIN_PRESENCE_UPDATE_INTERVAL = 20_000L
     }
 }

@@ -12,9 +12,7 @@ import android.widget.Toast
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animate
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandIn
@@ -23,18 +21,29 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
-import androidx.compose.foundation.gestures.waitForUpOrCancellation
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.BoxWithConstraintsScope
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
@@ -45,7 +54,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import androidx.compose.material3.SuggestionChip
+import androidx.compose.material3.SuggestionChipDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -65,8 +75,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -87,8 +95,10 @@ import androidx.media3.exoplayer.offline.Download.STATE_COMPLETED
 import androidx.media3.exoplayer.offline.Download.STATE_DOWNLOADING
 import androidx.media3.exoplayer.offline.Download.STATE_QUEUED
 import coil3.compose.AsyncImage
+import coil3.imageLoader
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
+import coil3.toBitmap
 import com.arturo254.opentune.LocalDatabase
 import com.arturo254.opentune.LocalDownloadUtil
 import com.arturo254.opentune.LocalPlayerConnection
@@ -112,8 +122,12 @@ import com.arturo254.opentune.innertube.models.ArtistItem
 import com.arturo254.opentune.innertube.models.PlaylistItem
 import com.arturo254.opentune.innertube.models.SongItem
 import com.arturo254.opentune.innertube.models.YTItem
+import com.arturo254.opentune.models.ItemMetadata
 import com.arturo254.opentune.models.MediaMetadata
 import com.arturo254.opentune.playback.queues.LocalAlbumRadio
+import com.arturo254.opentune.ui.theme.PlayerColorExtractor
+import com.arturo254.opentune.ui.theme.extractThemeColor
+import com.arturo254.opentune.ui.utils.resize
 import com.arturo254.opentune.utils.joinByBullet
 import com.arturo254.opentune.utils.makeTimeString
 import com.arturo254.opentune.utils.rememberPreference
@@ -142,10 +156,18 @@ inline fun ListItem(
         modifier = modifier
             .height(ListItemHeight)
             .padding(horizontal = 8.dp)
-            .then(if (isActive) Modifier.clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.secondaryContainer) else Modifier)
+            .then(
+                if (isActive) Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.secondaryContainer) else Modifier
+            )
     ) {
         Box(Modifier.padding(6.dp), contentAlignment = Alignment.Center) { thumbnailContent() }
-        Column(Modifier.weight(1f).padding(horizontal = 6.dp)) {
+        Column(
+            Modifier
+                .weight(1f)
+                .padding(horizontal = 6.dp)
+        ) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodyLarge,
@@ -260,42 +282,84 @@ private fun playlistPlaceholderIcon(
     }
 
 
+private val LibraryCardThumbnailSize = 72.dp
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun LibraryPlaylistFeatureCard(
     playlist: Playlist,
     modifier: Modifier = Modifier,
+    shape: Shape = RoundedCornerShape(26.dp),
     autoPlaylist: Boolean = false,
     trailingContent: @Composable RowScope.() -> Unit = {},
 ) {
     val subtitleText = playlistCountText(playlist = playlist, autoPlaylist = autoPlaylist)
-    val thumbnailSize = 86.dp
-    val thumbnailShape = RoundedCornerShape(22.dp)
+    val thumbnailSize = LibraryCardThumbnailSize
+    val thumbnailShape = RoundedCornerShape(18.dp)
+    val context = LocalContext.current
+    val primaryThumbnailUrl = playlist.thumbnails.getOrNull(0)
+    var extractedGlowColor by remember(primaryThumbnailUrl) { mutableStateOf(Color.Transparent) }
+    val glowColor by animateColorAsState(
+        targetValue = extractedGlowColor,
+        animationSpec = tween(400),
+        label = "playlistItemGlow",
+    )
+    LaunchedEffect(primaryThumbnailUrl) {
+        if (primaryThumbnailUrl == null) return@LaunchedEffect
+        val bitmap =
+            runCatching {
+                context.imageLoader
+                    .execute(
+                        ImageRequest
+                            .Builder(context)
+                            .data(primaryThumbnailUrl)
+                            .size(
+                                PlayerColorExtractor.Config.IMAGE_SIZE,
+                                PlayerColorExtractor.Config.IMAGE_SIZE
+                            )
+                            .allowHardware(false)
+                            .build(),
+                    ).image
+                    ?.toBitmap()
+            }.getOrNull() ?: return@LaunchedEffect
+        extractedGlowColor = withContext(Dispatchers.Default) { bitmap.extractThemeColor() }
+    }
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-        shape = RoundedCornerShape(26.dp),
+        shape = shape,
         modifier = modifier,
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
         ) {
-            PlaylistThumbnail(
-                thumbnails = playlist.thumbnails,
-                size = thumbnailSize,
-                placeHolder = {
-                    Icon(
-                        painter = painterResource(playlistPlaceholderIcon(playlist, autoPlaylist)),
-                        contentDescription = null,
-                        tint = LocalContentColor.current.copy(alpha = 0.8f),
-                        modifier = Modifier.size(thumbnailSize / 2),
-                    )
-                },
-                shape = thumbnailShape,
-            )
+            Box(
+                modifier =
+                    Modifier
+                        .size(thumbnailSize),
+            ) {
+                PlaylistThumbnail(
+                    thumbnails = playlist.thumbnails,
+                    size = thumbnailSize,
+                    placeHolder = {
+                        Icon(
+                            painter = painterResource(
+                                playlistPlaceholderIcon(
+                                    playlist,
+                                    autoPlaylist
+                                )
+                            ),
+                            contentDescription = null,
+                            tint = LocalContentColor.current.copy(alpha = 0.8f),
+                            modifier = Modifier.size(thumbnailSize / 2),
+                        )
+                    },
+                    shape = thumbnailShape,
+                )
+            }
             Spacer(Modifier.width(16.dp))
             Column(
                 verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -335,11 +399,11 @@ fun LibraryAlbumSpotlightCard(
     isActive: Boolean = false,
     isPlaying: Boolean = false,
     onPlay: (() -> Unit)? = null,
-    trailingContent: @Composable RowScope.() -> Unit = {},
 ) {
-    val subtitle = joinByBullet(
-        album.artists.joinToString { it.name },
-        pluralStringResource(R.plurals.n_song, album.album.songCount, album.album.songCount),
+    val subtitle = pluralStringResource(
+        R.plurals.n_song,
+        album.album.songCount,
+        album.album.songCount
     )
 
     val containerColor by animateColorAsState(
@@ -351,18 +415,23 @@ fun LibraryAlbumSpotlightCard(
     )
 
     Card(
-        shape = RoundedCornerShape(28.dp),
+        shape = RoundedCornerShape(32.dp),
         colors = CardDefaults.cardColors(containerColor = containerColor),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        modifier = modifier,
+        modifier = modifier
+            .width(130.dp),
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Box(modifier = Modifier.size(88.dp)) {
+            Box(
+                modifier = Modifier
+                    .size(106.dp)
+                    .clip(RoundedCornerShape(24.dp)),
+            ) {
                 LocalThumbnail(
                     thumbnailUrl = album.album.thumbnailUrl,
                     isActive = isActive,
@@ -377,27 +446,26 @@ fun LibraryAlbumSpotlightCard(
                     )
                 }
             }
-            Spacer(Modifier.width(16.dp))
             Column(
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-                modifier = Modifier.weight(1f),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(
                     text = album.album.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 2,
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center,
                 )
                 Text(
                     text = subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center,
                 )
-            }
-            Row {
-                trailingContent()
             }
         }
     }
@@ -457,54 +525,205 @@ fun LibraryArtistSpotlightCard(
     }
 }
 
+enum class GridPosition {
+    LEFT, RIGHT, SINGLE
+}
 
 @Composable
-fun LibraryPinnedCollectionTile(
+fun LibraryHeroFavoriteTile(
     title: String,
     @DrawableRes iconRes: Int,
+    badgeText: String,
     modifier: Modifier = Modifier,
     subtitle: String? = null,
     accentColor: Color = MaterialTheme.colorScheme.primary,
 ) {
     val animatedColor by animateColorAsState(accentColor, spring())
 
+    val expressiveHeroShape = RoundedCornerShape(
+        topStart = 38.dp,
+        topEnd = 12.dp,
+        bottomEnd = 38.dp,
+        bottomStart = 38.dp
+    )
+
+    val expressiveIconShape = RoundedCornerShape(
+        topStart = 24.dp,
+        topEnd = 12.dp,
+        bottomEnd = 24.dp,
+        bottomStart = 12.dp
+    )
+
+
     Card(
-        shape = RoundedCornerShape(26.dp),
+        shape = expressiveHeroShape,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)),
+        modifier = modifier
+    ) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(20.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(72.dp)
+                        .clip(expressiveIconShape)
+                        .background(animatedColor.copy(alpha = 0.16f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        painter = painterResource(iconRes),
+                        contentDescription = null,
+                        tint = animatedColor,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    SuggestionChip(
+                        onClick = {},
+                        label = {
+                            Text(
+                                text = badgeText.uppercase(),
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = MaterialTheme.typography.labelSmall.letterSpacing * 1.5
+                                )
+                            )
+                        },
+                        shape = CircleShape,
+                        colors = SuggestionChipDefaults.suggestionChipColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                        ),
+                        border = null,
+                        modifier = Modifier.height(24.dp)
+                    )
+
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Black
+                        ),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+
+                    subtitle?.takeIf { it.isNotBlank() }?.let {
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontWeight = FontWeight.Medium
+                            ),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun LibraryPinnedCollectionTile(
+    title: String,
+    @DrawableRes iconRes: Int,
+    gridPosition: GridPosition,
+    modifier: Modifier = Modifier,
+    subtitle: String? = null,
+    accentColor: Color = MaterialTheme.colorScheme.primary,
+) {
+    val animatedColor by animateColorAsState(accentColor, spring())
+
+    val expressiveCardShape = when (gridPosition) {
+        GridPosition.LEFT -> RoundedCornerShape(
+            topStart = 28.dp,
+            bottomStart = 28.dp,
+            topEnd = 6.dp,
+            bottomEnd = 6.dp
+        )
+
+        GridPosition.RIGHT -> RoundedCornerShape(
+            topStart = 6.dp,
+            bottomStart = 6.dp,
+            topEnd = 28.dp,
+            bottomEnd = 28.dp
+        )
+
+        GridPosition.SINGLE -> RoundedCornerShape(28.dp)
+    }
+
+    val expressiveIconShape = RoundedCornerShape(
+        topStart = 16.dp,
+        topEnd = 8.dp,
+        bottomEnd = 16.dp,
+        bottomStart = 8.dp
+    )
+
+    Card(
+        shape = expressiveCardShape,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         ),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        modifier = modifier,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+        modifier = modifier
     ) {
         Column(
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(18.dp)
         ) {
-            Surface(shape = CircleShape) {
+            Box(
+                modifier = Modifier
+                    .clip(expressiveIconShape)
+                    .background(animatedColor.copy(alpha = 0.10f))
+                    .padding(10.dp)
+            ) {
                 Icon(
                     painter = painterResource(iconRes),
                     contentDescription = null,
                     tint = animatedColor,
-                    modifier = Modifier.padding(12.dp),
+                    modifier = Modifier.size(24.dp)
                 )
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = MaterialTheme.typography.titleMedium.letterSpacing
+                    ),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
+
                 subtitle?.takeIf { it.isNotBlank() }?.let {
                     Text(
                         text = it,
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.Medium
+                        ),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
@@ -554,32 +773,43 @@ fun SongListItem(
     modifier: Modifier = Modifier,
     albumIndex: Int? = null,
     viewCountText: String? = null,
+    metadata: ItemMetadata? = null,
     showLikedIcon: Boolean = true,
     showInLibraryIcon: Boolean = false,
     showDownloadIcon: Boolean = true,
     badges: @Composable RowScope.() -> Unit = {
-        if (showLikedIcon && song.song.liked) {
-            Icon.Favorite()
-        }
-        if (song.song.explicit) {
-            Icon.Explicit()
-        }
-        if (showInLibraryIcon && song.song.inLibrary != null) {
-            Icon.Library()
-        }
-        if (showDownloadIcon) {
-            val download by LocalDownloadUtil.current.getDownload(song.id)
-                .collectAsState(initial = null)
-            Icon.Download(download?.state)
+        if (metadata != null) {
+            if (showLikedIcon && metadata.isLiked) Icon.Favorite()
+            if (song.song.explicit) Icon.Explicit()
+            if (showInLibraryIcon && metadata.isInLibrary) Icon.Library()
+            if (showDownloadIcon) Icon.Download(metadata.downloadState)
+        } else {
+            if (showLikedIcon && song.song.liked) {
+                Icon.Favorite()
+            }
+            if (song.song.explicit) {
+                Icon.Explicit()
+            }
+            if (showInLibraryIcon && song.song.inLibrary != null) {
+                Icon.Library()
+            }
+            if (showDownloadIcon) {
+                val download by LocalDownloadUtil.current.getDownload(song.id)
+                    .collectAsState(initial = null)
+                Icon.Download(download?.state)
+            }
         }
     },
     isSelected: Boolean = false,
     isActive: Boolean = false,
     isPlaying: Boolean = false,
     isSwipeable: Boolean = true,
+    swipeContentBackgroundColor: Color? = null,
     trailingContent: @Composable RowScope.() -> Unit = {},
 ) {
     val swipeEnabled by rememberPreference(SwipeToSongKey, defaultValue = false)
+    val resolvedSwipeContentBackgroundColor =
+        swipeContentBackgroundColor ?: MaterialTheme.colorScheme.surface
 
     val content: @Composable () -> Unit = {
         ListItem(
@@ -592,7 +822,7 @@ fun SongListItem(
             badges = badges,
             thumbnailContent = {
                 ItemThumbnail(
-                    thumbnailUrl = song.song.thumbnailUrl,
+                    thumbnailUrl = song.song.thumbnailUrl?.resize(200, 200),
                     albumIndex = albumIndex,
                     isSelected = isSelected,
                     isActive = isActive,
@@ -610,7 +840,7 @@ fun SongListItem(
     if (isSwipeable && swipeEnabled) {
         SwipeToSongBox(
             mediaItem = song.toMediaItem(),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         ) {
             content()
         }
@@ -623,19 +853,27 @@ fun SongListItem(
 fun SongGridItem(
     song: Song,
     modifier: Modifier = Modifier,
+    metadata: ItemMetadata? = null,
     showLikedIcon: Boolean = true,
     showInLibraryIcon: Boolean = false,
     showDownloadIcon: Boolean = true,
     badges: @Composable RowScope.() -> Unit = {
-        if (showLikedIcon && song.song.liked) {
-            Icon.Favorite()
-        }
-        if (showInLibraryIcon && song.song.inLibrary != null) {
-            Icon.Library()
-        }
-        if (showDownloadIcon) {
-            val download by LocalDownloadUtil.current.getDownload(song.id).collectAsState(initial = null)
-            Icon.Download(download?.state)
+        if (metadata != null) {
+            if (showLikedIcon && metadata.isLiked) Icon.Favorite()
+            if (showInLibraryIcon && metadata.isInLibrary) Icon.Library()
+            if (showDownloadIcon) Icon.Download(metadata.downloadState)
+        } else {
+            if (showLikedIcon && song.song.liked) {
+                Icon.Favorite()
+            }
+            if (showInLibraryIcon && song.song.inLibrary != null) {
+                Icon.Library()
+            }
+            if (showDownloadIcon) {
+                val download by LocalDownloadUtil.current.getDownload(song.id)
+                    .collectAsState(initial = null)
+                Icon.Download(download?.state)
+            }
         }
     },
     isActive: Boolean = false,
@@ -649,7 +887,9 @@ fun SongGridItem(
             fontWeight = FontWeight.Bold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.basicMarquee().fillMaxWidth()
+            modifier = Modifier
+                .basicMarquee()
+                .fillMaxWidth()
         )
     },
     subtitle = {
@@ -687,8 +927,11 @@ fun SongGridItem(
 fun ArtistListItem(
     artist: Artist,
     modifier: Modifier = Modifier,
+    metadata: ItemMetadata? = null,
     badges: @Composable RowScope.() -> Unit = {
-        if (artist.artist.bookmarkedAt != null) {
+        if (metadata != null) {
+            if (metadata.isLiked) Icon.Favorite()
+        } else if (artist.artist.bookmarkedAt != null) {
             Icon(
                 painter = painterResource(R.drawable.favorite),
                 contentDescription = null,
@@ -721,8 +964,11 @@ fun ArtistListItem(
 fun ArtistGridItem(
     artist: Artist,
     modifier: Modifier = Modifier,
+    metadata: ItemMetadata? = null,
     badges: @Composable RowScope.() -> Unit = {
-        if (artist.artist.bookmarkedAt != null) {
+        if (metadata != null) {
+            if (metadata.isLiked) Icon.Favorite()
+        } else if (artist.artist.bookmarkedAt != null) {
             Icon.Favorite()
         }
     },
@@ -749,42 +995,56 @@ fun ArtistGridItem(
 fun AlbumListItem(
     album: Album,
     modifier: Modifier = Modifier,
+    metadata: ItemMetadata? = null,
     showLikedIcon: Boolean = true,
     badges: @Composable RowScope.() -> Unit = {
-        val database = LocalDatabase.current
-        val downloadUtil = LocalDownloadUtil.current
-        var songs by remember {
-            mutableStateOf(emptyList<Song>())
-        }
-
-        LaunchedEffect(Unit) {
-            database.albumSongs(album.id).collect {
-                songs = it
+        if (metadata != null) {
+            if (showLikedIcon && metadata.isLiked) Icon.Favorite()
+            if (album.album.explicit) Icon.Explicit()
+            Icon.Download(metadata.downloadState)
+        } else {
+            val database = LocalDatabase.current
+            val downloadUtil = LocalDownloadUtil.current
+            var songs by remember {
+                mutableStateOf(emptyList<Song>())
             }
-        }
 
-        var downloadState by remember {
-            mutableStateOf(Download.STATE_STOPPED)
-        }
-
-        LaunchedEffect(songs) {
-            if (songs.isEmpty()) return@LaunchedEffect
-            downloadUtil.downloads.collect { downloads ->
-                downloadState = when {
-                    songs.all { downloads[it.id]?.state == STATE_COMPLETED } -> STATE_COMPLETED
-                    songs.all { downloads[it.id]?.state in listOf(STATE_QUEUED, STATE_DOWNLOADING, STATE_COMPLETED) } -> STATE_DOWNLOADING
-                    else -> Download.STATE_STOPPED
+            LaunchedEffect(Unit) {
+                database.albumSongs(album.id).collect {
+                    songs = it
                 }
             }
-        }
 
-        if (showLikedIcon && album.album.bookmarkedAt != null) {
-            Icon.Favorite()
+            var downloadState by remember {
+                mutableStateOf(Download.STATE_STOPPED)
+            }
+
+            LaunchedEffect(songs) {
+                if (songs.isEmpty()) return@LaunchedEffect
+                downloadUtil.downloads.collect { downloads ->
+                    downloadState = when {
+                        songs.all { downloads[it.id]?.state == STATE_COMPLETED } -> STATE_COMPLETED
+                        songs.all {
+                            downloads[it.id]?.state in listOf(
+                                STATE_QUEUED,
+                                STATE_DOWNLOADING,
+                                STATE_COMPLETED
+                            )
+                        } -> STATE_DOWNLOADING
+
+                        else -> Download.STATE_STOPPED
+                    }
+                }
+            }
+
+            if (showLikedIcon && album.album.bookmarkedAt != null) {
+                Icon.Favorite()
+            }
+            if (album.album.explicit) {
+                Icon.Explicit()
+            }
+            Icon.Download(downloadState)
         }
-        if (album.album.explicit) {
-            Icon.Explicit()
-        }
-        Icon.Download(downloadState)
     },
     isActive: Boolean = false,
     isPlaying: Boolean = false,
@@ -815,35 +1075,49 @@ fun AlbumGridItem(
     album: Album,
     modifier: Modifier = Modifier,
     coroutineScope: CoroutineScope,
+    metadata: ItemMetadata? = null,
     badges: @Composable RowScope.() -> Unit = {
-        val database = LocalDatabase.current
-        val downloadUtil = LocalDownloadUtil.current
-        var songs by remember { mutableStateOf(emptyList<Song>()) }
+        if (metadata != null) {
+            if (metadata.isLiked) Icon.Favorite()
+            if (album.album.explicit) Icon.Explicit()
+            Icon.Download(metadata.downloadState)
+        } else {
+            val database = LocalDatabase.current
+            val downloadUtil = LocalDownloadUtil.current
+            var songs by remember { mutableStateOf(emptyList<Song>()) }
 
-        LaunchedEffect(Unit) {
-            database.albumSongs(album.id).collect { songs = it }
-        }
+            LaunchedEffect(Unit) {
+                database.albumSongs(album.id).collect { songs = it }
+            }
 
-        var downloadState by remember { mutableStateOf(Download.STATE_STOPPED) }
+            var downloadState by remember { mutableStateOf(Download.STATE_STOPPED) }
 
-        LaunchedEffect(songs) {
-            if (songs.isEmpty()) return@LaunchedEffect
-            downloadUtil.downloads.collect { downloads ->
-                downloadState = when {
-                    songs.all { downloads[it.id]?.state == STATE_COMPLETED } -> STATE_COMPLETED
-                    songs.all { downloads[it.id]?.state in listOf(STATE_QUEUED, STATE_DOWNLOADING, STATE_COMPLETED) } -> STATE_DOWNLOADING
-                    else -> Download.STATE_STOPPED
+            LaunchedEffect(songs) {
+                if (songs.isEmpty()) return@LaunchedEffect
+                downloadUtil.downloads.collect { downloads ->
+                    downloadState = when {
+                        songs.all { downloads[it.id]?.state == STATE_COMPLETED } -> STATE_COMPLETED
+                        songs.all {
+                            downloads[it.id]?.state in listOf(
+                                STATE_QUEUED,
+                                STATE_DOWNLOADING,
+                                STATE_COMPLETED
+                            )
+                        } -> STATE_DOWNLOADING
+
+                        else -> Download.STATE_STOPPED
+                    }
                 }
             }
-        }
 
-        if (album.album.bookmarkedAt != null) {
-            Icon.Favorite()
+            if (album.album.bookmarkedAt != null) {
+                Icon.Favorite()
+            }
+            if (album.album.explicit) {
+                Icon.Explicit()
+            }
+            Icon.Download(downloadState)
         }
-        if (album.album.explicit) {
-            Icon.Explicit()
-        }
-        Icon.Download(downloadState)
     },
     isActive: Boolean = false,
     isPlaying: Boolean = false,
@@ -856,7 +1130,9 @@ fun AlbumGridItem(
             fontWeight = FontWeight.Bold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.basicMarquee().fillMaxWidth()
+            modifier = Modifier
+                .basicMarquee()
+                .fillMaxWidth()
         )
     },
     subtitle = {
@@ -900,7 +1176,12 @@ fun PlaylistListItem(
     playlist: Playlist,
     modifier: Modifier = Modifier,
     autoPlaylist: Boolean = false,
-    badges: @Composable RowScope.() -> Unit = {},
+    metadata: ItemMetadata? = null,
+    badges: @Composable RowScope.() -> Unit = {
+        if (metadata != null) {
+            if (metadata.isLiked) Icon.Favorite()
+        }
+    },
     trailingContent: @Composable RowScope.() -> Unit = {}
 ) = ListItem(
     title = playlist.playlist.name,
@@ -1058,7 +1339,11 @@ fun OverlayPlaylistListItem(
             onDismissRequest = { showPreview = false },
             confirmButton = { TextButton(onClick = { showPreview = false }) { Text(stringResource(R.string.close_dialog)) } },
             text = {
-                Box(modifier = Modifier.fillMaxWidth().height(360.dp)) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(360.dp)
+                ) {
                     AsyncImage(model = backgroundUrl, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                 }
             }
@@ -1071,7 +1356,12 @@ fun PlaylistGridItem(
     playlist: Playlist,
     modifier: Modifier = Modifier,
     autoPlaylist: Boolean = false,
-    badges: @Composable RowScope.() -> Unit = {},
+    metadata: ItemMetadata? = null,
+    badges: @Composable RowScope.() -> Unit = {
+        if (metadata != null) {
+            if (metadata.isLiked) Icon.Favorite()
+        }
+    },
     fillMaxWidth: Boolean = false,
 ) = GridItem(
     title = {
@@ -1081,7 +1371,9 @@ fun PlaylistGridItem(
             fontWeight = FontWeight.Bold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.basicMarquee().fillMaxWidth()
+            modifier = Modifier
+                .basicMarquee()
+                .fillMaxWidth()
         )
     },
     subtitle = {
@@ -1183,28 +1475,36 @@ fun YouTubeListItem(
     modifier: Modifier = Modifier,
     albumIndex: Int? = null,
     viewCountText: String? = null,
+    metadata: ItemMetadata? = null,
     isSelected: Boolean = false,
     isActive: Boolean = false,
     isPlaying: Boolean = false,
     isSwipeable: Boolean = true,
     trailingContent: @Composable RowScope.() -> Unit = {},
     badges: @Composable RowScope.() -> Unit = {
-        val database = LocalDatabase.current
-        val song by database.song(item.id).collectAsState(initial = null)
-        val album by database.album(item.id).collectAsState(initial = null)
+        if (metadata != null) {
+            if (metadata.isLiked) Icon.Favorite()
+            if (item.explicit) Icon.Explicit()
+            if (metadata.isInLibrary) Icon.Library()
+            if (item is SongItem) Icon.Download(metadata.downloadState)
+        } else {
+            val database = LocalDatabase.current
+            val song by database.song(item.id).collectAsState(initial = null)
+            val album by database.album(item.id).collectAsState(initial = null)
 
-        if ((item is SongItem && song?.song?.liked == true) ||
-            (item is AlbumItem && album?.album?.bookmarkedAt != null)
-        ) {
-            Icon.Favorite()
-        }
-        if (item.explicit) Icon.Explicit()
-        if (item is SongItem && song?.song?.inLibrary != null) {
-            Icon.Library()
-        }
-        if (item is SongItem) {
-            val downloads by LocalDownloadUtil.current.downloads.collectAsState()
-            Icon.Download(downloads[item.id]?.state)
+            if ((item is SongItem && song?.song?.liked == true) ||
+                (item is AlbumItem && album?.album?.bookmarkedAt != null)
+            ) {
+                Icon.Favorite()
+            }
+            if (item.explicit) Icon.Explicit()
+            if (item is SongItem && song?.song?.inLibrary != null) {
+                Icon.Library()
+            }
+            if (item is SongItem) {
+                val downloads by LocalDownloadUtil.current.downloads.collectAsState()
+                Icon.Download(downloads[item.id]?.state)
+            }
         }
     },
 ) {
@@ -1243,7 +1543,7 @@ fun YouTubeListItem(
 
     if (item is SongItem && isSwipeable && swipeEnabled) {
         SwipeToSongBox(
-            mediaItem = item.toMediaItem(),
+            mediaItem = item.copy(thumbnail = item.thumbnail.resize(1080, 1080)).toMediaItem(),
             modifier = Modifier.fillMaxWidth()
         ) {
             content()
@@ -1258,21 +1558,29 @@ fun YouTubeGridItem(
     item: YTItem,
     modifier: Modifier = Modifier,
     coroutineScope: CoroutineScope? = null,
+    metadata: ItemMetadata? = null,
     badges: @Composable RowScope.() -> Unit = {
-        val database = LocalDatabase.current
-        val song by database.song(item.id).collectAsState(initial = null)
-        val album by database.album(item.id).collectAsState(initial = null)
+        if (metadata != null) {
+            if (metadata.isLiked) Icon.Favorite()
+            if (item.explicit) Icon.Explicit()
+            if (metadata.isInLibrary) Icon.Library()
+            if (item is SongItem) Icon.Download(metadata.downloadState)
+        } else {
+            val database = LocalDatabase.current
+            val song by database.song(item.id).collectAsState(initial = null)
+            val album by database.album(item.id).collectAsState(initial = null)
 
-        if (item is SongItem && song?.song?.liked == true ||
-            item is AlbumItem && album?.album?.bookmarkedAt != null
-        ) {
-            Icon.Favorite()
-        }
-        if (item.explicit) Icon.Explicit()
-        if (item is SongItem && song?.song?.inLibrary != null) Icon.Library()
-        if (item is SongItem) {
-            val downloads by LocalDownloadUtil.current.downloads.collectAsState()
-            Icon.Download(downloads[item.id]?.state)
+            if (item is SongItem && song?.song?.liked == true ||
+                item is AlbumItem && album?.album?.bookmarkedAt != null
+            ) {
+                Icon.Favorite()
+            }
+            if (item.explicit) Icon.Explicit()
+            if (item is SongItem && song?.song?.inLibrary != null) Icon.Library()
+            if (item is SongItem) {
+                val downloads by LocalDownloadUtil.current.downloads.collectAsState()
+                Icon.Download(downloads[item.id]?.state)
+            }
         }
     },
     thumbnailRatio: Float = if (item is SongItem) 16f / 9 else 1f,
@@ -1288,7 +1596,9 @@ fun YouTubeGridItem(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = if (item is ArtistItem) TextAlign.Center else TextAlign.Start,
-            modifier = Modifier.basicMarquee().fillMaxWidth()
+            modifier = Modifier
+                .basicMarquee()
+                .fillMaxWidth()
         )
     },
     subtitle = {
@@ -1450,6 +1760,7 @@ fun ItemThumbnail(
     albumIndex: Int? = null,
     isSelected: Boolean = false,
     shouldLoadImage: Boolean = true,
+    @DrawableRes placeholderIconRes: Int? = null,
     thumbnailRatio: Float = 1f
 ) {
     val context = LocalContext.current
@@ -1472,7 +1783,7 @@ fun ItemThumbnail(
             if (shouldLoadImage) {
                 val request = remember(thumbnailUrl, widthPx, heightPx) {
                     ImageRequest.Builder(context)
-                        .data(thumbnailUrl)
+                        .data(thumbnailUrl?.resize(544, 544))
                         .allowHardware(true)
                         .apply {
                             if (widthPx != null && heightPx != null) {
@@ -1689,7 +2000,7 @@ fun PlaylistThumbnail(
         1 -> {
             val request = remember(thumbnails, sizePx) {
                 ImageRequest.Builder(context)
-                    .data(thumbnails[0])
+                    .data(thumbnails[0].resize((sizePx * 1.5).toInt(), (sizePx * 1.5).toInt()))
                     .size(sizePx, sizePx)
                     .allowHardware(true)
                     .build()
@@ -1718,7 +2029,7 @@ fun PlaylistThumbnail(
                 val url = thumbnails.getOrNull(index)
                 val request = remember(url, halfPx) {
                     ImageRequest.Builder(context)
-                        .data(url)
+                        .data(url?.resize((halfPx * 1.5).toInt(), (halfPx * 1.5).toInt()))
                         .size(halfPx, halfPx)
                         .allowHardware(true)
                         .build()

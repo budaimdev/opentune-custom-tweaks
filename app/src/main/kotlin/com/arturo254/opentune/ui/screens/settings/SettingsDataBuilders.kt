@@ -9,10 +9,9 @@ package com.arturo254.opentune.ui.screens.settings
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
-import android.os.Build
+import android.net.Uri
 import android.provider.Settings
 import android.widget.Toast
-import androidx.annotation.RequiresApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
@@ -21,7 +20,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavController
 import com.arturo254.opentune.BuildConfig
 import com.arturo254.opentune.R
-import androidx.core.net.toUri
 
 @Composable
 fun buildQuickActions(
@@ -62,14 +60,19 @@ fun buildIntegrationActions(
 ): List<SettingsIntegrationAction> =
     listOf(
         SettingsIntegrationAction(
-        icon = painterResource(R.drawable.fire),
-        label = stringResource(R.string.music_together),
-        onClick = { resetSearch(); navController.navigate("settings/music_together") },
-        accentColor = MaterialTheme.colorScheme.tertiary,
-    )
+            icon = painterResource(R.drawable.bedtime),
+            label = stringResource(R.string.AOD),
+            onClick = { resetSearch(); navController.navigate("settings/appearance/always_on_display") },
+            accentColor = Color(0xFFE3F2FD),
+        ),
+        SettingsIntegrationAction(
+            icon = painterResource(R.drawable.fire),
+            label = stringResource(R.string.music_together),
+            onClick = { resetSearch(); navController.navigate("settings/music_together") },
+            accentColor = MaterialTheme.colorScheme.tertiary,
+        ),
     )
 
-@RequiresApi(Build.VERSION_CODES.S)
 @Composable
 fun buildSettingsGroups(
     navController: NavController,
@@ -184,7 +187,7 @@ fun buildSettingsGroups(
                                     try {
                                         val intent = Intent(
                                             Settings.ACTION_APP_OPEN_BY_DEFAULT_SETTINGS,
-                                            "package:${context.packageName}".toUri()
+                                            Uri.parse("package:${context.packageName}")
                                         )
                                         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                         context.startActivity(intent)

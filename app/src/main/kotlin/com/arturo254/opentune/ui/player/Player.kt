@@ -23,39 +23,24 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.only
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.systemBars
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -69,31 +54,31 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.input.pointer.PointerEventPass
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.Layout
-import androidx.compose.foundation.focusable
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -104,61 +89,66 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.media3.common.C
 import androidx.media3.common.Player.STATE_BUFFERING
 import androidx.media3.common.Player.STATE_READY
-import androidx.palette.graphics.Palette
 import androidx.navigation.NavController
+import androidx.palette.graphics.Palette
+import coil3.compose.AsyncImage
 import coil3.imageLoader
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
 import coil3.toBitmap
-import com.arturo254.opentune.R
 import com.arturo254.opentune.LocalDownloadUtil
 import com.arturo254.opentune.LocalPlayerConnection
+import com.arturo254.opentune.R
+import com.arturo254.opentune.canvas.models.CanvasArtwork
+import com.arturo254.opentune.constants.AodAutoActivationKey
+import com.arturo254.opentune.constants.BlurRadiusKey
+import com.arturo254.opentune.constants.CanvasSource
 import com.arturo254.opentune.constants.DarkModeKey
-import com.arturo254.opentune.constants.PlayerDesignStyle
-import com.arturo254.opentune.constants.PlayerDesignStyleKey
+import com.arturo254.opentune.constants.DisableBlurKey
 import com.arturo254.opentune.constants.PlayerBackgroundStyle
 import com.arturo254.opentune.constants.PlayerBackgroundStyleKey
-import com.arturo254.opentune.constants.PlayerCustomImageUriKey
-import com.arturo254.opentune.constants.PlayerCustomBlurKey
-import com.arturo254.opentune.constants.PlayerCustomContrastKey
-import com.arturo254.opentune.constants.PlayerCustomBrightnessKey
-import com.arturo254.opentune.constants.DisableBlurKey
 import com.arturo254.opentune.constants.PlayerButtonsStyle
 import com.arturo254.opentune.constants.PlayerButtonsStyleKey
-import com.arturo254.opentune.ui.theme.PlayerColorExtractor
+import com.arturo254.opentune.constants.PlayerCustomBlurKey
+import com.arturo254.opentune.constants.PlayerCustomBrightnessKey
+import com.arturo254.opentune.constants.PlayerCustomContrastKey
+import com.arturo254.opentune.constants.PlayerCustomImageUriKey
+import com.arturo254.opentune.constants.PlayerDesignStyle
+import com.arturo254.opentune.constants.PlayerDesignStyleKey
 import com.arturo254.opentune.constants.QueuePeekHeight
+import com.arturo254.opentune.constants.SeekExtraSeconds
 import com.arturo254.opentune.constants.SliderStyle
 import com.arturo254.opentune.constants.SliderStyleKey
-import com.arturo254.opentune.extensions.togglePlayPause
 import com.arturo254.opentune.extensions.metadata
+import com.arturo254.opentune.extensions.togglePlayPause
 import com.arturo254.opentune.models.MediaMetadata
 import com.arturo254.opentune.ui.component.BottomSheet
 import com.arturo254.opentune.ui.component.BottomSheetState
+import com.arturo254.opentune.ui.component.COLLAPSED_ANCHOR
 import com.arturo254.opentune.ui.component.LocalBottomSheetPageState
 import com.arturo254.opentune.ui.component.LocalMenuState
 import com.arturo254.opentune.ui.component.rememberBottomSheetState
 import com.arturo254.opentune.ui.menu.PlayerMenu
 import com.arturo254.opentune.ui.screens.settings.DarkMode
+import com.arturo254.opentune.ui.theme.PlayerColorExtractor
 import com.arturo254.opentune.ui.utils.ShowMediaInfo
 import com.arturo254.opentune.utils.makeTimeString
 import com.arturo254.opentune.utils.rememberEnumPreference
 import com.arturo254.opentune.utils.rememberPreference
-import androidx.datastore.preferences.core.booleanPreferencesKey
-import coil3.compose.AsyncImage
-import com.arturo254.opentune.constants.AodAutoActivationKey
-import com.arturo254.opentune.constants.AodFullscreenKey
-import com.arturo254.opentune.constants.BlurRadiusKey
-import com.arturo254.opentune.ui.component.COLLAPSED_ANCHOR
 import com.skydoves.cloudy.cloudy
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
+import timber.log.Timber
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.math.roundToLong
@@ -172,12 +162,20 @@ private const val V7BackdropBlurHeightFraction = 0.54f // The height of the blur
 fun BottomSheetPlayer(
     state: BottomSheetState,
     navController: NavController,
+    lyricsSyncOffset: Int,
     modifier: Modifier = Modifier,
     pureBlack: Boolean,
 ) {
     val context = LocalContext.current
     val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     val menuState = LocalMenuState.current
+
+    val view = LocalView.current
+    val activity = context as? android.app.Activity
+    val activityWindow = activity?.window
+    val dialogWindow = (view.parent as? DialogWindowProvider)?.window
+    val window = dialogWindow ?: activityWindow
+
 
     val bottomSheetPageState = LocalBottomSheetPageState.current
 
@@ -202,13 +200,68 @@ fun BottomSheetPlayer(
     val (disableBlur) = rememberPreference(DisableBlurKey, false)
     val (blurRadius) = rememberPreference(BlurRadiusKey, 36f)
     val (showCodecOnPlayer) = rememberPreference(booleanPreferencesKey("show_codec_on_player"), false)
-    val (incrementalSeekSkipEnabled) = rememberPreference(com.arturo254.opentune.constants.SeekExtraSeconds, defaultValue = false)
+    val (incrementalSeekSkipEnabled) = rememberPreference(SeekExtraSeconds, defaultValue = false)
     var keyboardSkipMultiplier by remember { mutableStateOf(1) }
     var lastKeyboardTapTime by remember { mutableLongStateOf(0L) }
+    val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
+
+    // ============================================================
+// 🎯 CANVAS ARTWORK - Colocar DESPUÉS de mediaMetadata
+// ============================================================
+    var canvasArtwork by remember { mutableStateOf<CanvasArtwork?>(null) }
+    var canvasFetchInFlight by remember { mutableStateOf(false) }
+
+    LaunchedEffect(mediaMetadata?.id) {
+        val metadata = mediaMetadata ?: return@LaunchedEffect
+
+        val songTitle = metadata.title.takeIf { it.isNotBlank() } ?: return@LaunchedEffect
+        val artistName = metadata.artists.joinToString { it.name }.takeIf { it.isNotBlank() }
+            ?: return@LaunchedEffect
+        val albumName = metadata.album?.title
+
+        if (canvasFetchInFlight) return@LaunchedEffect
+        canvasFetchInFlight = true
+
+        try {
+            val fetched = withContext(Dispatchers.IO) {
+                fetchCanvasArtworkForPlayback(
+                    songTitleRaw = songTitle,
+                    artistNameRaw = artistName,
+                    albumName = albumName,
+                    source = CanvasSource.AUTO
+                )
+            }
+            // ✅ LOG PARA VERIFICAR
+            Timber.d("🎵 Player - Canvas cargado: ${fetched?.preferredAnimationUrl}")
+            canvasArtwork = fetched
+        } catch (e: Exception) {
+            Timber.e("🎵 Player - Error cargando canvas: ${e.message}")
+            canvasArtwork = null
+        } finally {
+            canvasFetchInFlight = false
+        }
+    }
+
+    val (playerFullscreen) = rememberPreference(
+        booleanPreferencesKey("player_fullscreen"),
+        defaultValue = false
+    )
+
+// Activar fullscreen al expandir
+    LaunchedEffect(state.isExpanded, playerFullscreen) {
+        if (state.isExpanded && playerFullscreen && window != null) {
+            WindowCompat.setDecorFitsSystemWindows(window, false)
+            val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+            insetsController.systemBarsBehavior =
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            insetsController.hide(WindowInsetsCompat.Type.systemBars())
+        }
+    }
 
 
 
-    val (aodAutoTimeoutSeconds) = rememberPreference(AodAutoActivationKey, 30)
+
+    val (aodAutoTimeoutSeconds) = rememberPreference(AodAutoActivationKey, 0)
 
     var lastInteractionTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var isAodActive by remember { mutableStateOf(false) }
@@ -272,7 +325,6 @@ fun BottomSheetPlayer(
 
     val playbackState by playerConnection.playbackState.collectAsState()
     val isPlaying by playerConnection.isPlaying.collectAsState()
-    val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
     val currentSong by playerConnection.currentSong.collectAsState(initial = null)
     val currentSongLiked = currentSong?.song?.liked == true
     val currentFormat by playerConnection.currentFormat.collectAsState(initial = null)
@@ -460,66 +512,129 @@ fun BottomSheetPlayer(
         AlertDialog(
             properties = DialogProperties(usePlatformDefaultWidth = false),
             onDismissRequest = { showSleepTimerDialog = false },
+
             icon = {
-                Icon(
-                    painter = painterResource(R.drawable.bedtime),
-                    contentDescription = null
+                Surface(
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    shape = CircleShape
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.bedtime),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .padding(16.dp)
+                            .size(28.dp)
+                    )
+                }
+            },
+
+            title = {
+                Text(
+                    text = stringResource(R.string.sleep_timer),
+                    style = MaterialTheme.typography.headlineSmallEmphasized
                 )
             },
-            title = { Text(stringResource(R.string.sleep_timer)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showSleepTimerDialog = false
-                        playerConnection.service.sleepTimer.start(sleepTimerValue.roundToInt())
-                    },
-                    shapes = ButtonDefaults.shapes(),
-                ) {
-                    Text(stringResource(android.R.string.ok))
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { showSleepTimerDialog = false },
-                    shapes = ButtonDefaults.shapes(),
-                ) {
-                    Text(stringResource(android.R.string.cancel))
-                }
-            },
+
             text = {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+
+                    Text(
+                        text = sleepTimerValue.roundToInt().toString(),
+                        style = MaterialTheme.typography.displayMediumEmphasized,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
                     Text(
                         text = pluralStringResource(
                             R.plurals.minute,
                             sleepTimerValue.roundToInt(),
                             sleepTimerValue.roundToInt()
                         ),
-                        style = MaterialTheme.typography.bodyLarge,
+                        style = MaterialTheme.typography.titleMedium
                     )
+
+                    Spacer(Modifier.height(20.dp))
 
                     Slider(
                         value = sleepTimerValue,
                         onValueChange = { sleepTimerValue = it },
                         valueRange = 5f..120f,
                         steps = (120 - 5) / 5 - 1,
+                        modifier = Modifier.fillMaxWidth()
                     )
 
-                    OutlinedIconButton(
-                        onClick = {
+                    Spacer(Modifier.height(20.dp))
+
+                    ToggleButton(
+                        checked = false,
+                        onCheckedChange = {
                             showSleepTimerDialog = false
                             playerConnection.service.sleepTimer.start(-1)
-                        },
+                        }
                     ) {
+                        Icon(
+                            painter = painterResource(R.drawable.music_note),
+                            contentDescription = null
+                        )
+
+                        Spacer(Modifier.width(ToggleButtonDefaults.IconSpacing))
+
                         Text(stringResource(R.string.end_of_song))
                     }
                 }
             },
+
+            dismissButton = {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(
+                        ButtonGroupDefaults.ConnectedSpaceBetween
+                    )
+                ) {
+
+                    ToggleButton(
+                        checked = false,
+                        onCheckedChange = {
+                            showSleepTimerDialog = false
+                        },
+                        shapes = ButtonGroupDefaults.connectedLeadingButtonShapes()
+                    ) {
+                        Text(stringResource(android.R.string.cancel))
+                    }
+
+                    ToggleButton(
+                        checked = false,
+                        onCheckedChange = {
+                            showSleepTimerDialog = false
+
+                            playerConnection.service.sleepTimer.start(
+                                sleepTimerValue.roundToInt()
+                            )
+                        },
+                        shapes = ButtonGroupDefaults.connectedTrailingButtonShapes()
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.play),
+                            contentDescription = null
+                        )
+
+                        Spacer(Modifier.width(ToggleButtonDefaults.IconSpacing))
+
+                        Text(stringResource(android.R.string.ok))
+                    }
+                }
+            },
+
+            confirmButton = {}
         )
     }
 
     var showChoosePlaylistDialog by rememberSaveable {
         mutableStateOf(false)
     }
+
 
     LaunchedEffect(mediaMetadata?.id, playbackState) {
         val startTime = SystemClock.elapsedRealtime()
@@ -637,9 +752,14 @@ fun BottomSheetPlayer(
                         }
                         lastKeyboardTapTime = now
                         val skipAmount = 5000L * keyboardSkipMultiplier
-                        playerConnection.player.seekTo((playerConnection.player.currentPosition - skipAmount).coerceAtLeast(0))
+                        playerConnection.player.seekTo(
+                            (playerConnection.player.currentPosition - skipAmount).coerceAtLeast(
+                                0
+                            )
+                        )
                         true
                     }
+
                     Key.DirectionRight -> {
                         val now = SystemClock.uptimeMillis()
                         if (incrementalSeekSkipEnabled && now - lastKeyboardTapTime < 1000) {
@@ -649,37 +769,50 @@ fun BottomSheetPlayer(
                         }
                         lastKeyboardTapTime = now
                         val skipAmount = 5000L * keyboardSkipMultiplier
-                        playerConnection.player.seekTo((playerConnection.player.currentPosition + skipAmount).coerceAtMost(playerConnection.player.duration))
+                        playerConnection.player.seekTo(
+                            (playerConnection.player.currentPosition + skipAmount).coerceAtMost(
+                                playerConnection.player.duration
+                            )
+                        )
                         true
                     }
+
                     Key.DirectionUp -> {
-                        playerConnection.service.playerVolume.value = (playerConnection.service.playerVolume.value + 0.05f).coerceAtMost(1f)
+                        playerConnection.service.playerVolume.value =
+                            (playerConnection.service.playerVolume.value + 0.05f).coerceAtMost(1f)
                         true
                     }
+
                     Key.DirectionDown -> {
-                        playerConnection.service.playerVolume.value = (playerConnection.service.playerVolume.value - 0.05f).coerceAtLeast(0f)
+                        playerConnection.service.playerVolume.value =
+                            (playerConnection.service.playerVolume.value - 0.05f).coerceAtLeast(0f)
                         true
                     }
+
                     Key.Spacebar -> {
                         playerConnection.player.togglePlayPause()
                         true
                     }
+
                     Key.N -> {
                         if (keyEvent.isShiftPressed) {
                             playerConnection.seekToNext()
                             true
                         } else false
                     }
+
                     Key.P -> {
                         if (keyEvent.isShiftPressed) {
                             playerConnection.seekToPrevious()
                             true
                         } else false
                     }
+
                     Key.L -> {
                         playerConnection.toggleLike()
                         true
                     }
+
                     else -> false
                 }
             },
@@ -928,6 +1061,67 @@ fun BottomSheetPlayer(
                             Spacer(Modifier.height(16.dp))
                         }
                     }
+                } else if (playerDesignStyle == PlayerDesignStyle.V8) {
+                    Box(
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        V8PlayerBackdrop(
+                            thumbnailUrl = mediaMetadata?.thumbnailUrl,
+                            canvasArtwork = canvasArtwork,
+                            isPlaying = isPlaying,
+                            disableBlur = disableBlur,
+                            label = "v8BackdropPortrait"
+                        )
+
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(bottom = queueSheetState.collapsedBound)
+                                .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
+                                .nestedScroll(state.preUpPostDownNestedScrollConnection),
+                        ) {
+                            enrichedMetadata?.let {
+                                V8PlayerControlsContent(
+                                    mediaMetadata = it,
+                                    playerDesignStyle = playerDesignStyle,
+                                    sliderStyle = SliderStyle.Thick,
+                                    playbackState = playbackState,
+                                    isPlaying = isPlaying,
+                                    isLoading = isLoading,
+                                    repeatMode = repeatMode,
+                                    canSkipPrevious = canSkipPrevious,
+                                    canSkipNext = canSkipNext,
+                                    textButtonColor = Color.White,
+                                    iconButtonColor = Color.Black,
+                                    textBackgroundColor = Color.White,
+                                    icBackgroundColor = Color.Black,
+                                    sliderPosition = sliderPosition,
+                                    position = position,
+                                    duration = duration,
+                                    playerConnection = playerConnection,
+                                    navController = navController,
+                                    state = state,
+                                    menuState = menuState,
+                                    bottomSheetPageState = bottomSheetPageState,
+                                    clipboardManager = clipboardManager,
+                                    context = context,
+                                    onSliderValueChange = onSliderValueChange,
+                                    onSliderValueChangeFinished = onSliderValueChangeFinished,
+                                    currentFormat = currentFormat,
+                                    onResetTimer = { resetAodTimer() },
+                                    nextUpMetadata = nextUpMetadata,
+                                    onExpandQueue = { queueSheetState.expandSoft() },
+                                    playerVolume = playerVolume.value,
+                                    onVolumeChange = { newVolume ->
+                                        playerConnection.service.playerVolume.value = newVolume
+                                    }
+                                )
+                            }
+
+                            Spacer(Modifier.height(16.dp))
+                        }
+                    }
                 } else {
                     Row(
                         modifier =
@@ -952,7 +1146,11 @@ fun BottomSheetPlayer(
                             modifier =
                                 Modifier
                                     .weight(1f)
-                                    .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top)),
+                                    .windowInsetsPadding(
+                                        WindowInsets.systemBars.only(
+                                            WindowInsetsSides.Top
+                                        )
+                                    ),
                         ) {
                             Spacer(Modifier.weight(1f))
 
@@ -1072,6 +1270,68 @@ fun BottomSheetPlayer(
                             Spacer(Modifier.height(24.dp))
                         }
                     }
+                } else if (playerDesignStyle == PlayerDesignStyle.V8) {
+                    // V8 - Apple Music Style (Portrait)
+                    Box(
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        V8PlayerBackdrop(
+                            thumbnailUrl = mediaMetadata?.thumbnailUrl,
+                            canvasArtwork = canvasArtwork,
+                            isPlaying = isPlaying,
+                            disableBlur = disableBlur,
+                            label = "v8BackdropPortrait"
+                        )
+
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(bottom = queueSheetState.collapsedBound)
+                                .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
+                                .nestedScroll(state.preUpPostDownNestedScrollConnection),
+                        ) {
+                            enrichedMetadata?.let {
+                                V8PlayerControlsContent(
+                                    mediaMetadata = it,
+                                    playerDesignStyle = playerDesignStyle,
+                                    sliderStyle = SliderStyle.Thick,
+                                    playbackState = playbackState,
+                                    isPlaying = isPlaying,
+                                    isLoading = isLoading,
+                                    repeatMode = repeatMode,
+                                    canSkipPrevious = canSkipPrevious,
+                                    canSkipNext = canSkipNext,
+                                    textButtonColor = Color.White,
+                                    iconButtonColor = Color.Black,
+                                    textBackgroundColor = Color.White,
+                                    icBackgroundColor = Color.Black,
+                                    sliderPosition = sliderPosition,
+                                    position = position,
+                                    duration = duration,
+                                    playerConnection = playerConnection,
+                                    navController = navController,
+                                    state = state,
+                                    menuState = menuState,
+                                    bottomSheetPageState = bottomSheetPageState,
+                                    clipboardManager = clipboardManager,
+                                    context = context,
+                                    onSliderValueChange = onSliderValueChange,
+                                    onSliderValueChangeFinished = onSliderValueChangeFinished,
+                                    currentFormat = currentFormat,
+                                    onResetTimer = { resetAodTimer() },
+                                    nextUpMetadata = nextUpMetadata,
+                                    onExpandQueue = { queueSheetState.expandSoft() },
+                                    playerVolume = playerVolume.value,
+                                    onVolumeChange = { newVolume ->
+                                        playerConnection.service.playerVolume.value = newVolume
+                                    }
+                                )
+                            }
+
+                            Spacer(Modifier.height(24.dp))
+                        }
+                    }
                 } else {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -1156,7 +1416,9 @@ fun BottomSheetPlayer(
                     LyricsScreen(
                         mediaMetadata = metadata,
                         onBackClick = { lyricsSheetState.collapseSoft() },
-                        navController = navController
+                        navController = navController,
+                        lyricsSyncOffset = lyricsSyncOffset,
+                        modifier = modifier,
                     )
                 }
             }

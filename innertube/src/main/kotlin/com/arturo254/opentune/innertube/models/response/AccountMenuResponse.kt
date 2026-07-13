@@ -4,14 +4,11 @@
  * Licensed Under GPL-3.0 | see git history for contributors
  */
 
-
-
 package com.arturo254.opentune.innertube.models.response
 
 import com.arturo254.opentune.innertube.models.AccountInfo
 import com.arturo254.opentune.innertube.models.Runs
 import com.arturo254.opentune.innertube.models.Thumbnails
-import com.arturo254.opentune.innertube.models.Thumbnail
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -51,7 +48,7 @@ data class AccountMenuResponse(
                                     name = name,
                                     email = email?.runs?.firstOrNull()?.text,
                                     channelHandle = channelHandle?.runs?.firstOrNull()?.text,
-                                    thumbnailUrl = accountPhoto.thumbnails.lastOrNull()?.url,
+                                    thumbnailUrl = accountPhoto.thumbnails.lastOrNull()?.normalizedUrl,
                                 )
                             }
                         }

@@ -30,11 +30,13 @@ import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -86,8 +88,6 @@ import coil3.imageLoader
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
 import coil3.toBitmap
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import com.arturo254.opentune.LocalPlayerAwareWindowInsets
 import com.arturo254.opentune.LocalPlayerConnection
 import com.arturo254.opentune.R
@@ -113,9 +113,14 @@ import com.arturo254.opentune.ui.utils.backToMain
 import com.arturo254.opentune.utils.rememberEnumPreference
 import com.arturo254.opentune.utils.rememberPreference
 import com.arturo254.opentune.viewmodels.CachePlaylistViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.time.LocalDateTime
 
-@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
+@OptIn(
+    ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class,
+    ExperimentalMaterial3ExpressiveApi::class
+)
 @Composable
 fun CachePlaylistScreen(
     navController: NavController,
@@ -468,10 +473,12 @@ fun CachePlaylistScreen(
                             // Action buttons row
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+                                horizontalArrangement = Arrangement.spacedBy(
+                                    ButtonGroupDefaults.ConnectedSpaceBetween,
+                                    Alignment.CenterHorizontally
+                                ),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                // Play Button
                                 Button(
                                     onClick = {
                                         playerConnection.playQueue(
@@ -481,7 +488,11 @@ fun CachePlaylistScreen(
                                             )
                                         )
                                     },
-                                    shape = RoundedCornerShape(24.dp),
+                                    shape = ButtonGroupDefaults.connectedLeadingButtonShapes().shape,
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary,
+                                        contentColor = MaterialTheme.colorScheme.onPrimary
+                                    ),
                                     modifier = Modifier
                                         .weight(1f)
                                         .height(48.dp)
@@ -492,8 +503,6 @@ fun CachePlaylistScreen(
                                         modifier = Modifier.size(24.dp)
                                     )
                                 }
-
-                                // Shuffle Button
                                 Button(
                                     onClick = {
                                         playerConnection.playQueue(
@@ -503,7 +512,11 @@ fun CachePlaylistScreen(
                                             )
                                         )
                                     },
-                                    shape = RoundedCornerShape(24.dp),
+                                    shape = ButtonGroupDefaults.connectedMiddleButtonShapes().shape,
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary,
+                                        contentColor = MaterialTheme.colorScheme.onPrimary
+                                    ),
                                     modifier = Modifier
                                         .weight(1f)
                                         .height(48.dp)
@@ -514,17 +527,17 @@ fun CachePlaylistScreen(
                                         modifier = Modifier.size(24.dp)
                                     )
                                 }
-
-                                // Add to Queue Button
                                 Surface(
                                     onClick = {
                                         playerConnection.addToQueue(
                                             items = filteredSongs.map { it.item.toMediaItem() },
                                         )
                                     },
-                                    shape = CircleShape,
+                                    shape = ButtonGroupDefaults.connectedTrailingButtonShapes().shape,
                                     color = MaterialTheme.colorScheme.surfaceVariant,
-                                    modifier = Modifier.size(48.dp)
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(48.dp)
                                 ) {
                                     Box(
                                         modifier = Modifier.fillMaxSize(),

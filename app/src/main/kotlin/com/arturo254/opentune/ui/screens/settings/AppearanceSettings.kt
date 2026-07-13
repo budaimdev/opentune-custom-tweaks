@@ -48,49 +48,51 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.arturo254.opentune.LocalPlayerAwareWindowInsets
 import com.arturo254.opentune.R
+import com.arturo254.opentune.constants.CanvasSource
+import com.arturo254.opentune.constants.CanvasSourceKey
 import com.arturo254.opentune.constants.ChipSortTypeKey
+import com.arturo254.opentune.constants.CropThumbnailToSquareKey
 import com.arturo254.opentune.constants.DarkModeKey
 import com.arturo254.opentune.constants.DefaultOpenTabKey
+import com.arturo254.opentune.constants.DisableBlurKey
 import com.arturo254.opentune.constants.DynamicThemeKey
+import com.arturo254.opentune.constants.EnableHapticFeedbackKey
 import com.arturo254.opentune.constants.GridItemSize
 import com.arturo254.opentune.constants.GridItemsSizeKey
+import com.arturo254.opentune.constants.HidePlayerThumbnailKey
 import com.arturo254.opentune.constants.LibraryFilter
+import com.arturo254.opentune.constants.LyricsAnimationStyle
+import com.arturo254.opentune.constants.LyricsAnimationStyleKey
 import com.arturo254.opentune.constants.LyricsClickKey
+import com.arturo254.opentune.constants.LyricsLineSpacingKey
 import com.arturo254.opentune.constants.LyricsScrollKey
 import com.arturo254.opentune.constants.LyricsTextPositionKey
-import com.arturo254.opentune.constants.PlayerDesignStyle
-import com.arturo254.opentune.constants.PlayerDesignStyleKey
-import com.arturo254.opentune.constants.UseNewMiniPlayerDesignKey
+import com.arturo254.opentune.constants.LyricsTextSizeKey
 import com.arturo254.opentune.constants.PlayerBackgroundStyle
 import com.arturo254.opentune.constants.PlayerBackgroundStyleKey
-import com.arturo254.opentune.constants.PureBlackKey
-import com.arturo254.opentune.constants.RandomThemeOnStartupKey
-import com.arturo254.opentune.constants.UseSystemFontKey
 import com.arturo254.opentune.constants.PlayerButtonsStyle
 import com.arturo254.opentune.constants.PlayerButtonsStyleKey
-import com.arturo254.opentune.constants.LyricsAnimationStyleKey
-import com.arturo254.opentune.constants.LyricsAnimationStyle
-import com.arturo254.opentune.constants.LyricsTextSizeKey
-import com.arturo254.opentune.constants.LyricsLineSpacingKey
+import com.arturo254.opentune.constants.PlayerDesignStyle
+import com.arturo254.opentune.constants.PlayerDesignStyleKey
+import com.arturo254.opentune.constants.PlayerFullscreenKey
+import com.arturo254.opentune.constants.PureBlackKey
+import com.arturo254.opentune.constants.RandomThemeOnStartupKey
+import com.arturo254.opentune.constants.ShowCachedPlaylistKey
+import com.arturo254.opentune.constants.ShowDownloadedPlaylistKey
+import com.arturo254.opentune.constants.ShowHomeCategoryChipsKey
+import com.arturo254.opentune.constants.ShowLikedPlaylistKey
+import com.arturo254.opentune.constants.ShowTagsInLibraryKey
+import com.arturo254.opentune.constants.ShowTopPlaylistKey
 import com.arturo254.opentune.constants.SliderStyle
 import com.arturo254.opentune.constants.SliderStyleKey
 import com.arturo254.opentune.constants.SlimNavBarKey
-import com.arturo254.opentune.constants.ShowLikedPlaylistKey
-import com.arturo254.opentune.constants.ShowDownloadedPlaylistKey
-import com.arturo254.opentune.constants.ShowHomeCategoryChipsKey
-import com.arturo254.opentune.constants.ShowTopPlaylistKey
-import com.arturo254.opentune.constants.ShowCachedPlaylistKey
-import com.arturo254.opentune.constants.ShowTagsInLibraryKey
-import com.arturo254.opentune.constants.SwipeThumbnailKey
 import com.arturo254.opentune.constants.SwipeSensitivityKey
+import com.arturo254.opentune.constants.SwipeThumbnailKey
 import com.arturo254.opentune.constants.SwipeToSongKey
-import com.arturo254.opentune.constants.HidePlayerThumbnailKey
-import com.arturo254.opentune.constants.OpenTuneCanvasKey
 import com.arturo254.opentune.constants.ThumbnailCornerRadiusKey
-import com.arturo254.opentune.constants.CropThumbnailToSquareKey
-import com.arturo254.opentune.constants.DisableBlurKey
-import com.arturo254.opentune.constants.LiquidGlassNavBarKey
 import com.arturo254.opentune.constants.UseLyricsV2Key
+import com.arturo254.opentune.constants.UseNewMiniPlayerDesignKey
+import com.arturo254.opentune.constants.UseSystemFontKey
 import com.arturo254.opentune.ui.component.DefaultDialog
 import com.arturo254.opentune.ui.component.EnumListPreference
 import com.arturo254.opentune.ui.component.IconButton
@@ -103,8 +105,8 @@ import com.arturo254.opentune.ui.player.StyledPlaybackSlider
 import com.arturo254.opentune.ui.utils.backToMain
 import com.arturo254.opentune.utils.rememberEnumPreference
 import com.arturo254.opentune.utils.rememberPreference
-import kotlin.math.roundToInt
 import timber.log.Timber
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -140,9 +142,9 @@ fun AppearanceSettings(
         HidePlayerThumbnailKey,
         defaultValue = false
     )
-    val (OpenTuneCanvasEnabled, onOpenTuneCanvasEnabledChange) = rememberPreference(
-        OpenTuneCanvasKey,
-        defaultValue = false
+    val (canvasSource, setCanvasSource) = rememberEnumPreference(
+        key = CanvasSourceKey,
+        defaultValue = CanvasSource.AUTO,
     )
     val (thumbnailCornerRadius, onThumbnailCornerRadiusChange) = rememberPreference(
         key = ThumbnailCornerRadiusKey,
@@ -238,10 +240,16 @@ fun AppearanceSettings(
         it != PlayerBackgroundStyle.BLUR || Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     }
 
-    val (liquidGlassNavBar, onLiquidGlassNavBarChange) = rememberPreference(
-        LiquidGlassNavBarKey,
+    val (playerFullscreen, onPlayerFullscreenChange) = rememberPreference(
+        PlayerFullscreenKey,
         defaultValue = false
     )
+
+    val (hapticEnabled, onHapticEnabledChange) = rememberPreference(
+        EnableHapticFeedbackKey,
+        defaultValue = true
+    )
+
 
     val isSystemInDarkTheme = isSystemInDarkTheme()
     val useDarkTheme =
@@ -324,6 +332,20 @@ fun AppearanceSettings(
             onCheckedChange = onDynamicThemeChange,
         )
 
+        SwitchPreference(
+            title = { Text(stringResource(R.string.player_fullscreen)) },
+            icon = { Icon(painterResource(R.drawable.fullscreen), null) },
+            checked = playerFullscreen,
+            onCheckedChange = onPlayerFullscreenChange,
+        )
+
+        SwitchPreference(
+            title = { Text("Haptic feedback") },
+            icon = { Icon(painterResource(R.drawable.haptic), null) },
+            checked = hapticEnabled,
+            onCheckedChange = onHapticEnabledChange,
+        )
+
         AnimatedVisibility(visible = !dynamicTheme || Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
             SwitchPreference(
                 title = { Text(stringResource(R.string.random_theme_on_startup)) },
@@ -400,6 +422,7 @@ fun AppearanceSettings(
                     PlayerDesignStyle.V5 -> stringResource(R.string.player_design_v5)
                     PlayerDesignStyle.V6 -> stringResource(R.string.player_design_v6)
                     PlayerDesignStyle.V7 -> stringResource(R.string.player_design_v7)
+                    PlayerDesignStyle.V8 -> stringResource(R.string.Apple_Music)
                 }
             },
         )
@@ -455,12 +478,20 @@ fun AppearanceSettings(
             onCheckedChange = onHidePlayerThumbnailChange
         )
 
-        SwitchPreference(
-            title = { Text(stringResource(R.string.OpenTune_canvas)) },
-            description = stringResource(R.string.OpenTune_canvas_desc),
+        ListPreference(
+            title = { Text("Canvas source") },
             icon = { Icon(painterResource(R.drawable.motion_photos_on), null) },
-            checked = OpenTuneCanvasEnabled,
-            onCheckedChange = onOpenTuneCanvasEnabledChange
+            selectedValue = canvasSource,
+            values = CanvasSource.entries,
+            valueText = { source ->
+                when (source) {
+                    CanvasSource.AUTO -> "Auto"
+                    CanvasSource.APPLE_MUSIC -> "Apple Music"
+                    CanvasSource.CUSTOM -> "Custom by OpenTune"
+                    CanvasSource.TIDAL -> "Tidal"
+                }
+            },
+            onValueSelected = setCanvasSource,
         )
       
 
@@ -819,6 +850,7 @@ fun AppearanceSettings(
                     LibraryFilter.ALBUMS -> stringResource(R.string.albums)
                     LibraryFilter.PLAYLISTS -> stringResource(R.string.playlists)
                     LibraryFilter.LIBRARY -> stringResource(R.string.filter_library)
+                    LibraryFilter.SPOTIFY -> stringResource(R.string.spotify)
                 }
             },
             onValueSelected = onDefaultChipChange,
@@ -830,6 +862,13 @@ fun AppearanceSettings(
             description = "Estilos, formas y opciones de personalización",
             icon = { Icon(painterResource(R.drawable.dark_mode), null) },
             onClick = { navController.navigate("settings/appearance/always_on_display") }
+        )
+
+        PreferenceEntry(
+            title = { Text("Widget Settings") },
+            description = "Personaliza la apariencia del widget",
+            icon = { Icon(painterResource(R.drawable.buttons), null) },
+            onClick = { navController.navigate("settings/widget") }
         )
 
         SwitchPreference(
@@ -861,14 +900,6 @@ fun AppearanceSettings(
             checked = slimNav,
             onCheckedChange = onSlimNavChange
         )
-
-        SwitchPreference(
-            title = { Text(stringResource(R.string.liquid_glass_navbar)) },
-            icon = { Icon(painterResource(R.drawable.blur_on), null) },
-            checked = liquidGlassNavBar,
-            onCheckedChange = onLiquidGlassNavBarChange,
-        )
-
 
         EnumListPreference(
             title = { Text(stringResource(R.string.grid_cell_size)) },

@@ -8,14 +8,16 @@
 
 package com.arturo254.opentune.ui.player
 
+import android.content.res.Configuration
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -23,15 +25,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.material3.ripple
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -45,18 +46,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.zIndex
 import androidx.compose.ui.unit.dp
-import android.content.res.Configuration
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.zIndex
 import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.common.Player.STATE_BUFFERING
 import androidx.media3.common.Player.STATE_READY
+import androidx.navigation.NavController
 import androidx.palette.graphics.Palette
 import coil3.imageLoader
 import coil3.request.ImageRequest
@@ -66,51 +69,52 @@ import coil3.toBitmap
 import com.arturo254.opentune.LocalDatabase
 import com.arturo254.opentune.LocalPlayerConnection
 import com.arturo254.opentune.R
+import com.arturo254.opentune.constants.BlurRadiusKey
+import com.arturo254.opentune.constants.DisableBlurKey
 import com.arturo254.opentune.constants.PlayerBackgroundStyle
 import com.arturo254.opentune.constants.PlayerBackgroundStyleKey
+import com.arturo254.opentune.constants.PlayerCustomBlurKey
+import com.arturo254.opentune.constants.PlayerCustomBrightnessKey
+import com.arturo254.opentune.constants.PlayerCustomContrastKey
+import com.arturo254.opentune.constants.PlayerCustomImageUriKey
 import com.arturo254.opentune.constants.SliderStyle
 import com.arturo254.opentune.constants.SliderStyleKey
+import com.arturo254.opentune.constants.UseLyricsV2Key
 import com.arturo254.opentune.db.entities.LyricsEntity
+import com.arturo254.opentune.di.LyricsHelperEntryPoint
 import com.arturo254.opentune.extensions.togglePlayPause
 import com.arturo254.opentune.extensions.toggleRepeatMode
 import com.arturo254.opentune.models.MediaMetadata
+import com.arturo254.opentune.ui.component.BigSeekBar
 import com.arturo254.opentune.ui.component.Lyrics
 import com.arturo254.opentune.ui.component.LyricsV2
-import com.arturo254.opentune.constants.UseLyricsV2Key
-import com.arturo254.opentune.ui.component.LocalMenuState
-import com.arturo254.opentune.ui.component.BigSeekBar
-import androidx.navigation.NavController
-import com.arturo254.opentune.constants.BlurRadiusKey
 import com.arturo254.opentune.ui.menu.LyricsMenu
 import com.arturo254.opentune.ui.theme.PlayerColorExtractor
+import com.arturo254.opentune.utils.makeTimeString
 import com.arturo254.opentune.utils.rememberEnumPreference
 import com.arturo254.opentune.utils.rememberPreference
-import com.arturo254.opentune.constants.PlayerCustomImageUriKey
-import com.arturo254.opentune.constants.PlayerCustomBlurKey
-import com.arturo254.opentune.constants.PlayerCustomContrastKey
-import com.arturo254.opentune.constants.PlayerCustomBrightnessKey
-import com.arturo254.opentune.constants.DisableBlurKey
 import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlin.runCatching
-import com.arturo254.opentune.utils.makeTimeString
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LyricsScreen(
     mediaMetadata: MediaMetadata,
-    onBackClick: () -> Unit,
     navController: NavController,
+    onBackClick: () -> Unit,
+    lyricsSyncOffset: Int,
     modifier: Modifier = Modifier
 ) {
+
+    var showLyricsMenu by remember { mutableStateOf(false) }
+
     val playerConnection = LocalPlayerConnection.current ?: return
     val player = playerConnection.player
     val context = LocalContext.current
-    val menuState = LocalMenuState.current
     val database = LocalDatabase.current
     val coroutineScope = rememberCoroutineScope()
 
@@ -136,7 +140,7 @@ fun LyricsScreen(
                     // Get LyricsHelper from Hilt
                     val entryPoint = EntryPointAccessors.fromApplication(
                         context.applicationContext,
-                        com.arturo254.opentune.di.LyricsHelperEntryPoint::class.java
+                        LyricsHelperEntryPoint::class.java
                     )
                     val lyricsHelper = entryPoint.lyricsHelper()
                     
@@ -332,7 +336,7 @@ fun LyricsScreen(
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
-                        
+
                         // More button (right)
                         Box(
                             modifier = Modifier
@@ -344,13 +348,7 @@ fun LyricsScreen(
                                         radius = 16.dp
                                     )
                                 ) {
-                                    menuState.show {
-                                        LyricsMenu(
-                                            lyricsProvider = { currentLyrics },
-                                            mediaMetadataProvider = { mediaMetadata },
-                                            onDismiss = menuState::dismiss
-                                        )
-                                    }
+                                    showLyricsMenu = true
                                 },
                             contentAlignment = Alignment.Center
                         ) {
@@ -388,7 +386,9 @@ fun LyricsScreen(
                                     )
                                 } else {
                                     Lyrics(
-                                        sliderPositionProvider = { sliderPosition }
+                                        sliderPositionProvider = { sliderPosition },
+                                        lyricsSyncOffset = lyricsSyncOffset,
+                                        modifier = modifier,
                                     )
                                 }
                             }
@@ -640,7 +640,7 @@ fun LyricsScreen(
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
-                        
+
                         // More button (right)
                         Box(
                             modifier = Modifier
@@ -652,13 +652,7 @@ fun LyricsScreen(
                                         radius = 16.dp
                                     )
                                 ) {
-                                    menuState.show {
-                                        LyricsMenu(
-                                            lyricsProvider = { currentLyrics },
-                                            mediaMetadataProvider = { mediaMetadata },
-                                            onDismiss = menuState::dismiss
-                                        )
-                                    }
+                                    showLyricsMenu = true
                                 },
                             contentAlignment = Alignment.Center
                         ) {
@@ -684,7 +678,9 @@ fun LyricsScreen(
                             )
                         } else {
                             Lyrics(
-                                sliderPositionProvider = { sliderPosition }
+                                sliderPositionProvider = { sliderPosition },
+                                lyricsSyncOffset = lyricsSyncOffset,
+                                modifier = modifier,
                             )
                         }
                     }
@@ -881,6 +877,21 @@ fun LyricsScreen(
                     }
                 }
             }
+        }
+    }
+    if (showLyricsMenu) {
+        Dialog(
+            onDismissRequest = { showLyricsMenu = false },
+            properties = DialogProperties(
+                usePlatformDefaultWidth = false,
+                decorFitsSystemWindows = false
+            )
+        ) {
+            LyricsMenu(
+                lyricsProvider = { currentLyrics },
+                mediaMetadataProvider = { mediaMetadata },
+                onDismiss = { showLyricsMenu = false }
+            )
         }
     }
 }

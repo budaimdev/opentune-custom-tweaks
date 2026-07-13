@@ -32,7 +32,6 @@ import com.arturo254.opentune.ui.player.CanvasArtworkPlaybackCache
 import com.arturo254.opentune.ui.screens.settings.ThemePalettes
 import com.arturo254.opentune.ui.theme.ThemeSeedPalette
 import com.arturo254.opentune.ui.theme.ThemeSeedPaletteCodec
-import com.arturo254.opentune.ui.utils.ThumbnailCache
 import com.arturo254.opentune.utils.PreferenceStore
 import com.arturo254.opentune.utils.dataStore
 import com.arturo254.opentune.utils.get
@@ -73,10 +72,6 @@ class App : Application(), SingletonImageLoader.Factory {
         }
     }
 
-
-    fun initThumbnailCache(context: android.content.Context) {
-        ThumbnailCache.init(context)
-    }
 
     @OptIn(DelicateCoroutinesApi::class)
     override fun onCreate() {

@@ -5,26 +5,49 @@
  */
 
 
-
 package com.arturo254.opentune.ui.screens.search
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.Modifier
-import com.arturo254.opentune.R
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
@@ -36,18 +59,24 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.arturo254.opentune.innertube.models.*
 import com.arturo254.opentune.LocalDatabase
 import com.arturo254.opentune.LocalPlayerConnection
+import com.arturo254.opentune.R
 import com.arturo254.opentune.extensions.togglePlayPause
+import com.arturo254.opentune.innertube.models.AlbumItem
+import com.arturo254.opentune.innertube.models.ArtistItem
+import com.arturo254.opentune.innertube.models.PlaylistItem
+import com.arturo254.opentune.innertube.models.SongItem
 import com.arturo254.opentune.models.toMediaMetadata
 import com.arturo254.opentune.playback.queues.YouTubeQueue
 import com.arturo254.opentune.ui.component.LocalMenuState
 import com.arturo254.opentune.ui.component.YouTubeListItem
-import com.arturo254.opentune.ui.menu.*
+import com.arturo254.opentune.ui.menu.YouTubeAlbumMenu
+import com.arturo254.opentune.ui.menu.YouTubeArtistMenu
+import com.arturo254.opentune.ui.menu.YouTubePlaylistMenu
+import com.arturo254.opentune.ui.menu.YouTubeSongMenu
 import com.arturo254.opentune.viewmodels.OnlineSearchSuggestionViewModel
 import kotlinx.coroutines.flow.drop
-import androidx.compose.ui.graphics.Color
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalComposeUiApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -229,14 +258,17 @@ fun OnlineSearchScreen(
                                         onDismiss()
                                     }
                                 }
+
                                 is AlbumItem -> {
                                     navController.navigate("album/${item.id}")
                                     onDismiss()
                                 }
+
                                 is ArtistItem -> {
                                     navController.navigate("artist/${item.id}")
                                     onDismiss()
                                 }
+
                                 is PlaylistItem -> {
                                     navController.navigate("online_playlist/${item.id}")
                                     onDismiss()
@@ -255,6 +287,7 @@ fun OnlineSearchScreen(
                                             onDismiss()
                                         }
                                     )
+
                                     is AlbumItem -> YouTubeAlbumMenu(
                                         albumItem = item,
                                         navController = navController,
@@ -263,6 +296,7 @@ fun OnlineSearchScreen(
                                             onDismiss()
                                         }
                                     )
+
                                     is ArtistItem -> YouTubeArtistMenu(
                                         artist = item,
                                         onDismiss = {
@@ -270,6 +304,7 @@ fun OnlineSearchScreen(
                                             onDismiss()
                                         }
                                     )
+
                                     is PlaylistItem -> YouTubePlaylistMenu(
                                         playlist = item,
                                         coroutineScope = coroutineScope,
@@ -314,6 +349,7 @@ fun SuggestionItem(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .fillMaxWidth()
+            .focusable()
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 6.dp),
     ) {

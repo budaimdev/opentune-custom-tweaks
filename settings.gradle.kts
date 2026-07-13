@@ -27,6 +27,7 @@ dependencyResolutionManagement {
 rootProject.name = "OpenTune Custom Tweaks"
 include(":app")
 include(":innertube")
+include(":spotify")
 include(":lrclib")
 include(":betterlyrics")
 include(":canvas")

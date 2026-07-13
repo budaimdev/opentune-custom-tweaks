@@ -23,6 +23,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.arturo254.opentune.R
 import com.arturo254.opentune.ui.screens.artist.ArtistAlbumsScreen
 import com.arturo254.opentune.ui.screens.artist.ArtistItemsScreen
 import com.arturo254.opentune.ui.screens.artist.ArtistScreen
@@ -38,6 +39,7 @@ import com.arturo254.opentune.ui.screens.playlist.TopPlaylistScreen
 import com.arturo254.opentune.ui.screens.search.OnlineSearchResult
 import com.arturo254.opentune.ui.screens.settings.AODSettings
 import com.arturo254.opentune.ui.screens.settings.AboutScreen
+import com.arturo254.opentune.ui.screens.settings.AndroidAutoSettings
 import com.arturo254.opentune.ui.screens.settings.AppearanceSettings
 import com.arturo254.opentune.ui.screens.settings.BackupAndRestore
 import com.arturo254.opentune.ui.screens.settings.ChangelogScreen
@@ -53,7 +55,7 @@ import com.arturo254.opentune.ui.screens.settings.StorageSettings
 import com.arturo254.opentune.ui.screens.settings.ThemeCreatorScreen
 import com.arturo254.opentune.ui.screens.settings.UpdateScreen
 
-@RequiresApi(Build.VERSION_CODES.R)
+@RequiresApi(30)
 @OptIn(ExperimentalMaterial3Api::class)
 fun NavGraphBuilder.navigationBuilder(
     navController: NavHostController,
@@ -322,6 +324,13 @@ fun NavGraphBuilder.navigationBuilder(
     }
     composable("settings/changelog") {
         ChangelogScreen(navController, scrollBehavior)
+    }
+    composable("settings/android_auto") {
+        AndroidAutoSettings(
+            navController,
+            scrollBehavior,
+            context = androidx.compose.ui.platform.LocalContext.current
+        )
     }
     composable("settings/about") {
         AboutScreen(navController, scrollBehavior)

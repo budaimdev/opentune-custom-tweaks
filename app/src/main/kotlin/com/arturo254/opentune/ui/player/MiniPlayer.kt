@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.arturo254.opentune.LocalPlayerConnection
 import com.arturo254.opentune.constants.SwipeSensitivityKey
+import com.arturo254.opentune.constants.SwipeThumbnailKey
 import com.arturo254.opentune.utils.rememberPreference
 import kotlin.math.roundToInt
 
@@ -55,7 +56,7 @@ private fun NewMiniPlayer(
     val layoutDirection = LocalLayoutDirection.current
     val coroutineScope = rememberCoroutineScope()
     val swipeSensitivity by rememberPreference(SwipeSensitivityKey, 0.73f)
-    val swipeThumbnail by rememberPreference(com.arturo254.opentune.constants.SwipeThumbnailKey, true)
+    val swipeThumbnail by rememberPreference(SwipeThumbnailKey, true)
 
     SwipeableMiniPlayerBox(
         modifier = modifier,
@@ -78,7 +79,6 @@ private fun NewMiniPlayer(
                 )
         ) {
             NewMiniPlayerContent(
-                pureBlack = pureBlack,
                 position = position,
                 duration = duration,
                 playerConnection = playerConnection

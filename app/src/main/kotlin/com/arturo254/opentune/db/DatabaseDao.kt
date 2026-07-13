@@ -15,15 +15,11 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.RawQuery
 import androidx.room.RewriteQueriesToDropUnusedColumns
+import androidx.room.RoomWarnings
 import androidx.room.Transaction
 import androidx.room.Update
 import androidx.room.Upsert
-import androidx.room.RoomWarnings
 import androidx.sqlite.db.SupportSQLiteQuery
-import com.arturo254.opentune.innertube.models.PlaylistItem
-import com.arturo254.opentune.innertube.models.SongItem
-import com.arturo254.opentune.innertube.pages.AlbumPage
-import com.arturo254.opentune.innertube.pages.ArtistPage
 import com.arturo254.opentune.constants.AlbumSortType
 import com.arturo254.opentune.constants.ArtistSongSortType
 import com.arturo254.opentune.constants.ArtistSortType
@@ -32,7 +28,6 @@ import com.arturo254.opentune.constants.SongSortType
 import com.arturo254.opentune.db.entities.Album
 import com.arturo254.opentune.db.entities.AlbumArtistMap
 import com.arturo254.opentune.db.entities.AlbumEntity
-import com.arturo254.opentune.db.entities.PlayCountEntity
 import com.arturo254.opentune.db.entities.AlbumWithSongs
 import com.arturo254.opentune.db.entities.Artist
 import com.arturo254.opentune.db.entities.ArtistEntity
@@ -40,10 +35,12 @@ import com.arturo254.opentune.db.entities.Event
 import com.arturo254.opentune.db.entities.EventWithSong
 import com.arturo254.opentune.db.entities.FormatEntity
 import com.arturo254.opentune.db.entities.LyricsEntity
+import com.arturo254.opentune.db.entities.PlayCountEntity
 import com.arturo254.opentune.db.entities.Playlist
 import com.arturo254.opentune.db.entities.PlaylistEntity
 import com.arturo254.opentune.db.entities.PlaylistSong
 import com.arturo254.opentune.db.entities.PlaylistSongMap
+import com.arturo254.opentune.db.entities.PlaylistTagMap
 import com.arturo254.opentune.db.entities.RelatedSongMap
 import com.arturo254.opentune.db.entities.SearchHistory
 import com.arturo254.opentune.db.entities.SetVideoIdEntity
@@ -53,20 +50,18 @@ import com.arturo254.opentune.db.entities.SongArtistMap
 import com.arturo254.opentune.db.entities.SongEntity
 import com.arturo254.opentune.db.entities.SongWithStats
 import com.arturo254.opentune.db.entities.TagEntity
-import com.arturo254.opentune.db.entities.PlaylistTagMap
-import com.arturo254.opentune.db.entities.PlaylistWithTags
 import com.arturo254.opentune.extensions.reversed
 import com.arturo254.opentune.extensions.toSQLiteQuery
+import com.arturo254.opentune.innertube.models.PlaylistItem
+import com.arturo254.opentune.innertube.models.SongItem
+import com.arturo254.opentune.innertube.pages.AlbumPage
+import com.arturo254.opentune.innertube.pages.ArtistPage
 import com.arturo254.opentune.models.MediaMetadata
 import com.arturo254.opentune.models.toMediaMetadata
 import com.arturo254.opentune.ui.utils.resize
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.launch
 import java.text.Collator
 import java.time.LocalDateTime
 import java.time.ZoneOffset
@@ -359,29 +354,29 @@ interface DatabaseDao {
     @Query(
         """
         SELECT song.*
-        FROM (SELECT *, COUNT(1) AS referredCount
+        FROM (SELECT relatedSongId, COUNT(1) AS referredCount
               FROM related_song_map
+              WHERE songId IN (SELECT songId
+                               FROM (SELECT songId
+                                     FROM event
+                                     ORDER BY ROWID DESC
+                                     LIMIT 5)
+                               UNION
+                               SELECT songId
+                               FROM (SELECT songId
+                                     FROM event
+                                     WHERE timestamp > :now - 86400000 * 7
+                                     GROUP BY songId
+                                     ORDER BY SUM(playTime) DESC
+                                     LIMIT 5)
+                               UNION
+                               SELECT id
+                               FROM (SELECT id
+                                     FROM song
+                                     ORDER BY totalPlayTime DESC
+                                     LIMIT 10))
               GROUP BY relatedSongId) map
                  JOIN song ON song.id = map.relatedSongId
-        WHERE songId IN (SELECT songId
-                         FROM (SELECT songId
-                               FROM event
-                               ORDER BY ROWID DESC
-                               LIMIT 5)
-                         UNION
-                         SELECT songId
-                         FROM (SELECT songId
-                               FROM event
-                               WHERE timestamp > :now - 86400000 * 7
-                               GROUP BY songId
-                               ORDER BY SUM(playTime) DESC
-                               LIMIT 5)
-                         UNION
-                         SELECT id
-                         FROM (SELECT id
-                               FROM song
-                               ORDER BY totalPlayTime DESC
-                               LIMIT 10))
         ORDER BY referredCount DESC
         LIMIT 100
     """,
@@ -1197,7 +1192,7 @@ interface DatabaseDao {
 
     @Transaction
     @Query(
-        "SELECT song.* FROM (SELECT * from related_song_map GROUP BY relatedSongId) map JOIN song ON song.id = map.relatedSongId where songId = :songId",
+        "SELECT song.* FROM (SELECT relatedSongId FROM related_song_map WHERE songId = :songId GROUP BY relatedSongId) map JOIN song ON song.id = map.relatedSongId",
     )
     fun getRelatedSongs(songId: String): Flow<List<Song>>
 
@@ -1205,13 +1200,13 @@ interface DatabaseDao {
     @Query(
         """
         SELECT song.*
-        FROM (SELECT *
+        FROM (SELECT relatedSongId
               FROM related_song_map
+              WHERE songId = :songId
               GROUP BY relatedSongId) map
                  JOIN
              song
              ON song.id = map.relatedSongId
-        WHERE songId = :songId
         """
     )
     fun relatedSongs(songId: String): List<Song>

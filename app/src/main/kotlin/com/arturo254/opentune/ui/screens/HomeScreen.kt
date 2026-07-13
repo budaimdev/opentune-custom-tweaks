@@ -20,8 +20,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.pulltorefresh.pullToRefresh
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults.Indicator
+import androidx.compose.material3.pulltorefresh.pullToRefresh
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -40,17 +41,16 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
-import androidx.compose.material3.MaterialTheme
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
-import com.arturo254.opentune.innertube.utils.parseCookieString
 import com.arturo254.opentune.LocalPlayerAwareWindowInsets
 import com.arturo254.opentune.LocalPlayerConnection
 import com.arturo254.opentune.R
-import com.arturo254.opentune.constants.InnerTubeCookieKey
 import com.arturo254.opentune.constants.DisableBlurKey
+import com.arturo254.opentune.constants.InnerTubeCookieKey
 import com.arturo254.opentune.constants.ShowHomeCategoryChipsKey
+import com.arturo254.opentune.innertube.utils.parseCookieString
 import com.arturo254.opentune.ui.component.ChipsRow
 import com.arturo254.opentune.ui.component.LocalBottomSheetPageState
 import com.arturo254.opentune.ui.component.LocalMenuState
@@ -79,6 +79,7 @@ fun HomeScreen(
     val forgottenFavorites by viewModel.forgottenFavorites.collectAsState()
     val keepListening by viewModel.keepListening.collectAsState()
     val homePage by viewModel.homePage.collectAsState()
+    val allItemsMetadata by viewModel.allItemsMetadata.collectAsState()
 
     val selectedChip by viewModel.selectedChip.collectAsState()
 
@@ -306,7 +307,8 @@ fun HomeScreen(
                         navController = navController,
                         playerConnection = playerConnection,
                         menuState = menuState,
-                        haptic = haptic
+                        haptic = haptic,
+                        metadataMap = allItemsMetadata
                     )
                 }
             }
@@ -327,7 +329,8 @@ fun HomeScreen(
                         navController = navController,
                         playerConnection = playerConnection,
                         menuState = menuState,
-                        haptic = haptic
+                        haptic = haptic,
+                        metadataMap = allItemsMetadata
                     )
                 }
             }
@@ -349,7 +352,8 @@ fun HomeScreen(
                         playerConnection = playerConnection,
                         menuState = menuState,
                         haptic = haptic,
-                        scope = scope
+                        scope = scope,
+                        metadataMap = allItemsMetadata
                     )
                 }
             }
@@ -386,7 +390,8 @@ fun HomeScreen(
                         navController = navController,
                         playerConnection = playerConnection,
                         menuState = menuState,
-                        haptic = haptic
+                        haptic = haptic,
+                        metadataMap = allItemsMetadata
                     )
                 }
             }
@@ -420,7 +425,8 @@ fun HomeScreen(
                         playerConnection = playerConnection,
                         menuState = menuState,
                         haptic = haptic,
-                        scope = scope
+                        scope = scope,
+                        metadataMap = allItemsMetadata
                     )
                 }
             }

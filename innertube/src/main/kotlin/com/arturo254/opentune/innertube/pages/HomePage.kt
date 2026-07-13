@@ -4,8 +4,6 @@
  * Licensed Under GPL-3.0 | see git history for contributors
  */
 
-
-
 package com.arturo254.opentune.innertube.pages
 
 import com.arturo254.opentune.innertube.models.Album
@@ -19,8 +17,8 @@ import com.arturo254.opentune.innertube.models.PlaylistItem
 import com.arturo254.opentune.innertube.models.SectionListRenderer
 import com.arturo254.opentune.innertube.models.SongItem
 import com.arturo254.opentune.innertube.models.YTItem
-import com.arturo254.opentune.innertube.models.oddElements
 import com.arturo254.opentune.innertube.models.filterExplicit
+import com.arturo254.opentune.innertube.models.oddElements
 
 data class HomePage(
     val chips: List<Chip>?,

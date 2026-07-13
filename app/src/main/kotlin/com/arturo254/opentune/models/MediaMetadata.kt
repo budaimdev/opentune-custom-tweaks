@@ -9,9 +9,9 @@
 package com.arturo254.opentune.models
 
 import androidx.compose.runtime.Immutable
-import com.arturo254.opentune.innertube.models.SongItem
 import com.arturo254.opentune.db.entities.Song
 import com.arturo254.opentune.db.entities.SongEntity
+import com.arturo254.opentune.innertube.models.SongItem
 import com.arturo254.opentune.ui.utils.resize
 import java.io.Serializable
 import java.time.LocalDateTime
@@ -29,6 +29,7 @@ data class MediaMetadata(
     val liked: Boolean = false,
     val likedDate: LocalDateTime? = null,
     val inLibrary: LocalDateTime? = null,
+    val spotifyTrackId: String? = null,
 ) : Serializable {
     companion object {
         private const val serialVersionUID = 1L
@@ -130,6 +131,6 @@ fun SongItem.toMediaMetadata() =
                 title = it.name,
             )
         },
+        setVideoId = setVideoId,
         explicit = explicit,
-        setVideoId = setVideoId
     )

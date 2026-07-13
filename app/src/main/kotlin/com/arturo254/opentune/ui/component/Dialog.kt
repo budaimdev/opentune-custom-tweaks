@@ -9,7 +9,6 @@
 package com.arturo254.opentune.ui.component
 
 import android.content.Intent
-import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -75,11 +74,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.core.net.toUri
 import androidx.navigation.NavController
 import com.arturo254.opentune.R
 import com.arturo254.opentune.ui.screens.settings.AccountSettings
 import kotlinx.coroutines.delay
-import androidx.core.net.toUri
 
 @Composable
 fun DefaultDialog(
@@ -227,6 +226,7 @@ fun ActionPromptDialog(
     onConfirm: () -> Unit,
     onReset: (() -> Unit)? = null,
     onCancel: (() -> Unit)? = null,
+    confirmButton: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit = {}
 ) {
     Dialog(
@@ -242,8 +242,9 @@ fun ActionPromptDialog(
             Column(
                 modifier = Modifier.padding(24.dp)
             ) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    // title
+                Column(
+                    modifier = Modifier.padding(12.dp)
+                ) {
                     if (titleBar != null) {
                         Row {
                             titleBar()
@@ -255,38 +256,45 @@ fun ActionPromptDialog(
                             maxLines = 1,
                             style = MaterialTheme.typography.headlineSmall,
                         )
+
                         Spacer(Modifier.height(16.dp))
                     }
 
-                    content() // body
+                    content()
                 }
 
-                Row(
-                    horizontalArrangement = Arrangement.End,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    if (onReset != null) {
-                        Row(modifier = Modifier.weight(1f)) {
-                            TextButton(
-                                onClick = { onReset() },
+                if (confirmButton != null) {
+                    confirmButton()
+                } else {
+                    Row(
+                        horizontalArrangement = Arrangement.End,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        if (onReset != null) {
+                            Row(
+                                modifier = Modifier.weight(1f)
                             ) {
-                                Text(stringResource(R.string.reset))
+                                TextButton(
+                                    onClick = onReset
+                                ) {
+                                    Text(stringResource(R.string.reset))
+                                }
                             }
                         }
-                    }
 
-                    if (onCancel != null) {
-                        TextButton(
-                            onClick = { onCancel() }
-                        ) {
-                            Text(stringResource(android.R.string.cancel))
+                        if (onCancel != null) {
+                            TextButton(
+                                onClick = onCancel
+                            ) {
+                                Text(stringResource(android.R.string.cancel))
+                            }
                         }
-                    }
 
-                    TextButton(
-                        onClick = { onConfirm() }
-                    ) {
-                        Text(stringResource(android.R.string.ok))
+                        TextButton(
+                            onClick = onConfirm
+                        ) {
+                            Text(stringResource(android.R.string.ok))
+                        }
                     }
                 }
             }
