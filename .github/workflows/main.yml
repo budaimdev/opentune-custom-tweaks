@@ -28,7 +28,11 @@ jobs:
 
       # Spustí čistý build a vygeneruje produkční APK i AAB (App Bundle)
       - name: Kompilace Release APK a AAB
-        run: ./gradlew clean assembleRelease bundleRelease
+        run: |
+          ./gradlew assembleUniversalRelease --no-parallel
+          ./gradlew assembleArmeabiRelease --no-parallel
+          ./gradlew assembleX86Release --no-parallel
+          ./gradlew bundleRelease --no-parallel
 
       # Podepsání výsledných APK a AAB pomocí tvého keystore souboru
       - name: Podepsání Release APK a AAB
