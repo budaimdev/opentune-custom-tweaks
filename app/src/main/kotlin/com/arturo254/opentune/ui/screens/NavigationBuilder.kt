@@ -302,7 +302,7 @@ fun NavGraphBuilder.navigationBuilder(
         AODSettings(navController, scrollBehavior)
     }
     composable("settings/content") {
-        ContentSettings(navController, scrollBehavior)
+        ContentSettings(navController)
     }
     composable("settings/player") {
         PlayerSettings(navController, scrollBehavior)

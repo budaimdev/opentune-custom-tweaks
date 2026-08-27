@@ -13,6 +13,7 @@ import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 
@@ -43,6 +44,7 @@ val BlurRadiusKey = floatPreferencesKey("blurRadius")
 val MiniPlayerLastAnchorKey = intPreferencesKey("miniPlayerLastAnchor")
 val EnableHapticFeedbackKey = booleanPreferencesKey("enableHapticFeedback")
 val PlayerFullscreenKey = booleanPreferencesKey("player_fullscreen")
+val EnableLiquidGlassKey = booleanPreferencesKey("enableLiquidGlass")
 
 val ProviderOrderKey = stringPreferencesKey("lyrics_provider_order")
 
@@ -190,6 +192,7 @@ val ShowLikedPlaylistKey = booleanPreferencesKey("show_liked_playlist")
 val ShowDownloadedPlaylistKey = booleanPreferencesKey("show_downloaded_playlist")
 val ShowTopPlaylistKey = booleanPreferencesKey("show_top_playlist")
 val ShowCachedPlaylistKey = booleanPreferencesKey("show_cached_playlist")
+val ShowLocalPlaylistKey = booleanPreferencesKey("show_local_playlist")
 
 enum class LibraryViewType {
     LIST,
@@ -645,5 +648,5 @@ val SpotifyAccountAvatarUrlKey = stringPreferencesKey("spotify_account_avatar_ur
 val ShowSpotifyPlaylistsKey = booleanPreferencesKey("show_spotify_playlists")
 val SpotifyLibraryPlaylistsCacheKey = stringPreferencesKey("spotify_library_playlists_cache")
 
-val CustomCanvasEnabledKey = booleanPreferencesKey("custom_canvas_enabled")
-val CustomCanvasApiUrlKey = stringPreferencesKey("custom_canvas_api_url")
+val JossRedMultimediaKey = booleanPreferencesKey("JossRedMultimedia")
+val SelectedLocalFoldersKey = stringSetPreferencesKey("selected_local_folders")

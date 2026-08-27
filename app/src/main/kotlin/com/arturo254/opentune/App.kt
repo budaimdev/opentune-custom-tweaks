@@ -46,6 +46,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.arturo254.opentune.canvas.providers.GlobalLogTree
 import timber.log.Timber
 import java.io.PrintWriter
 import java.io.StringWriter
@@ -84,7 +85,7 @@ class App : Application(), SingletonImageLoader.Factory {
         PreferenceStore.start(this)
         Timber.plant(Timber.DebugTree())
         try {
-            Timber.plant(com.arturo254.opentune.utils.GlobalLogTree())
+            Timber.plant(GlobalLogTree())
         } catch (_: Exception) {}
 
         initializeCriticalSync()

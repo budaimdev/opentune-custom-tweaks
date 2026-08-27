@@ -27,23 +27,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxScope
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.BoxWithConstraintsScope
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
@@ -163,11 +147,9 @@ inline fun ListItem(
             )
     ) {
         Box(Modifier.padding(6.dp), contentAlignment = Alignment.Center) { thumbnailContent() }
-        Column(
-            Modifier
-                .weight(1f)
-                .padding(horizontal = 6.dp)
-        ) {
+        Column(Modifier
+            .weight(1f)
+            .padding(horizontal = 6.dp)) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodyLarge,
@@ -808,8 +790,6 @@ fun SongListItem(
     trailingContent: @Composable RowScope.() -> Unit = {},
 ) {
     val swipeEnabled by rememberPreference(SwipeToSongKey, defaultValue = false)
-    val resolvedSwipeContentBackgroundColor =
-        swipeContentBackgroundColor ?: MaterialTheme.colorScheme.surface
 
     val content: @Composable () -> Unit = {
         ListItem(
@@ -822,7 +802,7 @@ fun SongListItem(
             badges = badges,
             thumbnailContent = {
                 ItemThumbnail(
-                    thumbnailUrl = song.song.thumbnailUrl?.resize(200, 200),
+                    thumbnailUrl = song.song.thumbnailUrl?.resize(200, 200,),
                     albumIndex = albumIndex,
                     isSelected = isSelected,
                     isActive = isActive,
@@ -870,8 +850,7 @@ fun SongGridItem(
                 Icon.Library()
             }
             if (showDownloadIcon) {
-                val download by LocalDownloadUtil.current.getDownload(song.id)
-                    .collectAsState(initial = null)
+                val download by LocalDownloadUtil.current.getDownload(song.id).collectAsState(initial = null)
                 Icon.Download(download?.state)
             }
         }
@@ -1097,14 +1076,7 @@ fun AlbumGridItem(
                 downloadUtil.downloads.collect { downloads ->
                     downloadState = when {
                         songs.all { downloads[it.id]?.state == STATE_COMPLETED } -> STATE_COMPLETED
-                        songs.all {
-                            downloads[it.id]?.state in listOf(
-                                STATE_QUEUED,
-                                STATE_DOWNLOADING,
-                                STATE_COMPLETED
-                            )
-                        } -> STATE_DOWNLOADING
-
+                        songs.all { downloads[it.id]?.state in listOf(STATE_QUEUED, STATE_DOWNLOADING, STATE_COMPLETED) } -> STATE_DOWNLOADING
                         else -> Download.STATE_STOPPED
                     }
                 }
@@ -1339,11 +1311,9 @@ fun OverlayPlaylistListItem(
             onDismissRequest = { showPreview = false },
             confirmButton = { TextButton(onClick = { showPreview = false }) { Text(stringResource(R.string.close_dialog)) } },
             text = {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(360.dp)
-                ) {
+                Box(modifier = Modifier
+                    .fillMaxWidth()
+                    .height(360.dp)) {
                     AsyncImage(model = backgroundUrl, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                 }
             }
@@ -1543,7 +1513,7 @@ fun YouTubeListItem(
 
     if (item is SongItem && isSwipeable && swipeEnabled) {
         SwipeToSongBox(
-            mediaItem = item.copy(thumbnail = item.thumbnail.resize(1080, 1080)).toMediaItem(),
+            mediaItem = item.copy(thumbnail = item.thumbnail.resize(1080, 1080,)).toMediaItem(),
             modifier = Modifier.fillMaxWidth()
         ) {
             content()
@@ -1783,7 +1753,7 @@ fun ItemThumbnail(
             if (shouldLoadImage) {
                 val request = remember(thumbnailUrl, widthPx, heightPx) {
                     ImageRequest.Builder(context)
-                        .data(thumbnailUrl?.resize(544, 544))
+                        .data(thumbnailUrl?.resize(544, 544,))
                         .allowHardware(true)
                         .apply {
                             if (widthPx != null && heightPx != null) {
@@ -2000,7 +1970,7 @@ fun PlaylistThumbnail(
         1 -> {
             val request = remember(thumbnails, sizePx) {
                 ImageRequest.Builder(context)
-                    .data(thumbnails[0].resize((sizePx * 1.5).toInt(), (sizePx * 1.5).toInt()))
+                    .data(thumbnails[0].resize((sizePx * 1.5).toInt(), (sizePx * 1.5).toInt(),))
                     .size(sizePx, sizePx)
                     .allowHardware(true)
                     .build()
@@ -2029,7 +1999,7 @@ fun PlaylistThumbnail(
                 val url = thumbnails.getOrNull(index)
                 val request = remember(url, halfPx) {
                     ImageRequest.Builder(context)
-                        .data(url?.resize((halfPx * 1.5).toInt(), (halfPx * 1.5).toInt()))
+                        .data(url?.resize((halfPx * 1.5).toInt(), (halfPx * 1.5).toInt(),))
                         .size(halfPx, halfPx)
                         .allowHardware(true)
                         .build()

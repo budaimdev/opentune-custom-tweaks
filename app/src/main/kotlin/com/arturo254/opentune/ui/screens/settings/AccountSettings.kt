@@ -22,8 +22,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -33,25 +35,33 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.CircularWavyProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -69,6 +79,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -93,16 +104,20 @@ import com.arturo254.opentune.constants.UseLoginForBrowse
 import com.arturo254.opentune.constants.VisitorDataKey
 import com.arturo254.opentune.constants.YtmSyncKey
 import com.arturo254.opentune.innertube.YouTube
+import com.arturo254.opentune.innertube.models.PlaylistItem
 import com.arturo254.opentune.innertube.utils.completed
 import com.arturo254.opentune.innertube.utils.parseCookieString
 import com.arturo254.opentune.ui.component.InfoLabel
 import com.arturo254.opentune.ui.component.TextFieldDialog
 import com.arturo254.opentune.ui.screens.buildLoginRoute
+import com.arturo254.opentune.utils.PreferenceStore
 import com.arturo254.opentune.utils.Updater
 import com.arturo254.opentune.utils.dataStore
 import com.arturo254.opentune.utils.rememberPreference
 import com.arturo254.opentune.viewmodels.HomeViewModel
+import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun AccountSettings(
     navController: NavController,
@@ -139,13 +154,31 @@ fun AccountSettings(
 
     val hasUpdate = !Updater.isSameVersion(latestVersionName, BuildConfig.VERSION_NAME)
 
-    Column(
-        modifier = Modifier
-            .background(MaterialTheme.colorScheme.surface)
-            .verticalScroll(rememberScrollState())
+    val coroutineScope = rememberCoroutineScope()
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true
+    )
+
+    // Cierre animado: espera a que la hoja termine de colapsar antes de avisar al padre.
+    fun closeSheet() {
+        coroutineScope.launch { sheetState.hide() }.invokeOnCompletion {
+            if (!sheetState.isVisible) onClose()
+        }
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onClose,
+        sheetState = sheetState,
+        dragHandle = { BottomSheetDefaults.DragHandle() },
+        containerColor = MaterialTheme.colorScheme.surface,
     ) {
-        // Header Section
-        AccountSettingsHeader(onClose = onClose)
+        Column(
+            modifier = Modifier
+                .background(MaterialTheme.colorScheme.surface)
+                .verticalScroll(rememberScrollState())
+        ) {
+            // Header Section
+            AccountSettingsHeader(onClose = { closeSheet() })
 
         Column(
             modifier = Modifier.padding(horizontal = 16.dp),
@@ -209,57 +242,57 @@ fun AccountSettings(
                         }
                     )
 
+                        HorizontalDivider(
+                            modifier = Modifier.padding(start = 56.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                        )
+
+                        SettingsToggleItem(
+                            icon = painterResource(R.drawable.cached),
+                            title = stringResource(R.string.yt_sync),
+                            checked = ytmSync,
+                            onCheckedChange = onYtmSyncChange
+                        )
+                    }
+                }
+
+                // Sync & Integration Section
+                SettingsSection(title = stringResource(R.string.integration)) {
+                    SettingsClickableItem(
+                        icon = painterResource(R.drawable.playlist_add),
+                        title = stringResource(R.string.select_playlist_to_sync),
+                        onClick = { showPlaylistDialog = true }
+                    )
+
                     HorizontalDivider(
                         modifier = Modifier.padding(start = 56.dp),
                         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
                     )
 
-                    SettingsToggleItem(
-                        icon = painterResource(R.drawable.cached),
-                        title = stringResource(R.string.yt_sync),
-                        checked = ytmSync,
-                        onCheckedChange = onYtmSyncChange
+                    SettingsClickableItem(
+                        icon = painterResource(R.drawable.integration),
+                        title = stringResource(R.string.integration),
+                        subtitle = "Discord, Last.fm, ListenBrainz",
+                        onClick = {
+                            onClose()
+                            navController.navigate("settings/integration")
+                        }
+                    )
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(start = 56.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                    )
+
+                    SettingsClickableItem(
+                        icon = painterResource(R.drawable.fire),
+                        title = stringResource(R.string.music_together),
+                        onClick = {
+                            onClose()
+                            navController.navigate("settings/music_together")
+                        }
                     )
                 }
-            }
-
-            // Sync & Integration Section
-            SettingsSection(title = stringResource(R.string.integration)) {
-                SettingsClickableItem(
-                    icon = painterResource(R.drawable.playlist_add),
-                    title = stringResource(R.string.select_playlist_to_sync),
-                    onClick = { showPlaylistDialog = true }
-                )
-
-                HorizontalDivider(
-                    modifier = Modifier.padding(start = 56.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
-                )
-
-                SettingsClickableItem(
-                    icon = painterResource(R.drawable.integration),
-                    title = stringResource(R.string.integration),
-                    subtitle = "Discord, Last.fm, ListenBrainz",
-                    onClick = {
-                        onClose()
-                        navController.navigate("settings/integration")
-                    }
-                )
-
-                HorizontalDivider(
-                    modifier = Modifier.padding(start = 56.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
-                )
-
-                SettingsClickableItem(
-                    icon = painterResource(R.drawable.fire),
-                    title = stringResource(R.string.music_together),
-                    onClick = {
-                        onClose()
-                        navController.navigate("settings/music_together")
-                    }
-                )
-            }
 
             // Advanced Section
             SettingsSection(title = stringResource(R.string.misc)) {
@@ -278,39 +311,40 @@ fun AccountSettings(
                 )
             }
 
-            // Settings & Updates Section
-            SettingsSection {
-                SettingsClickableItem(
-                    icon = painterResource(R.drawable.settings),
-                    title = stringResource(R.string.settings),
-                    showBadge = hasUpdate,
-                    onClick = {
-                        onClose()
-                        navController.navigate("settings")
+                // Settings & Updates Section
+                SettingsSection {
+                    SettingsClickableItem(
+                        icon = painterResource(R.drawable.settings),
+                        title = stringResource(R.string.settings),
+                        showBadge = hasUpdate,
+                        onClick = {
+                            onClose()
+                            navController.navigate("settings")
+                        }
+                    )
+
+                    if (hasUpdate) {
+                        HorizontalDivider(
+                            modifier = Modifier.padding(start = 56.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                        )
+
+                        UpdateAvailableItem(
+                            latestVersion = latestVersionName,
+                            onClick = { uriHandler.openUri(Updater.getLatestDownloadUrl()) }
+                        )
                     }
-                )
-
-                if (hasUpdate) {
-                    HorizontalDivider(
-                        modifier = Modifier.padding(start = 56.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
-                    )
-
-                    UpdateAvailableItem(
-                        latestVersion = latestVersionName,
-                        onClick = { uriHandler.openUri(Updater.getLatestDownloadUrl()) }
-                    )
                 }
+
+                // App Version Footer
+                AppVersionFooter()
+
+                Spacer(Modifier.height(8.dp))
             }
-
-            // App Version Footer
-            AppVersionFooter()
-
-            Spacer(Modifier.height(8.dp))
         }
     }
 
-    // Playlist Selection Dialog
+    // Playlist Selection Bottom Sheet (se apila sobre el de arriba al abrirse)
     if (showPlaylistDialog) {
         PlaylistSelectionDialog(
             onDismiss = { showPlaylistDialog = false }
@@ -376,6 +410,7 @@ private fun AccountSettingsHeader(onClose: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun AccountCard(
     isLoggedIn: Boolean,
@@ -385,12 +420,14 @@ private fun AccountCard(
     onAccountClick: () -> Unit,
     onLogout: () -> Unit
 ) {
+    // ✅ Animación ligada al MotionScheme expresivo del tema en vez de un tween fijo.
+    // Para color/alpha se usa el spec "effects" (no espacial), tal como recomienda MD3 Expressive.
     val cardColor by animateColorAsState(
         targetValue = if (isLoggedIn)
             MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
         else
             MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-        animationSpec = tween(300),
+        animationSpec = MaterialTheme.motionScheme.fastEffectsSpec(),
         label = "cardColor"
     )
 
@@ -452,8 +489,7 @@ private fun AccountCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = if (isLoggedIn) accountName else stringResource(R.string.login),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.titleMediumEmphasized,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -486,7 +522,7 @@ private fun AccountCard(
                 ) {
                     Text(
                         text = stringResource(R.string.action_logout),
-                        style = MaterialTheme.typography.labelMedium
+                        style = MaterialTheme.typography.labelMediumEmphasized
                     )
                 }
             } else {
@@ -531,6 +567,7 @@ private fun SettingsSection(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun SettingsClickableItem(
     icon: Painter,
@@ -546,34 +583,38 @@ private fun SettingsClickableItem(
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Icon Container
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
-            contentAlignment = Alignment.Center
+        // ✅ Icon Container con forma expresiva de MD3 (MaterialShapes) en vez de
+        // un RoundedCornerShape estático.
+        Surface(
+            shape = MaterialShapes.Cookie9Sided.toShape(),
+            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+            modifier = Modifier.size(40.dp)
         ) {
-            if (showBadge) {
-                BadgedBox(
-                    badge = {
-                        Badge(containerColor = MaterialTheme.colorScheme.error)
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                if (showBadge) {
+                    BadgedBox(
+                        badge = {
+                            Badge(containerColor = MaterialTheme.colorScheme.error)
+                        }
+                    ) {
+                        Icon(
+                            painter = icon,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
                     }
-                ) {
+                } else {
                     Icon(
                         painter = icon,
                         contentDescription = null,
-                        modifier = Modifier.size(22.dp),
+                        modifier = Modifier.size(20.dp),
                         tint = MaterialTheme.colorScheme.primary
                     )
                 }
-            } else {
-                Icon(
-                    painter = icon,
-                    contentDescription = null,
-                    modifier = Modifier.size(22.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
             }
         }
 
@@ -582,8 +623,8 @@ private fun SettingsClickableItem(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium,
+                // ✅ Tipografía "emphasized" en vez de fontWeight manual
+                style = MaterialTheme.typography.bodyLargeEmphasized,
                 color = MaterialTheme.colorScheme.onSurface
             )
             if (subtitle != null) {
@@ -606,6 +647,7 @@ private fun SettingsClickableItem(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun SettingsToggleItem(
     icon: Painter,
@@ -621,20 +663,23 @@ private fun SettingsToggleItem(
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Icon Container
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
-            contentAlignment = Alignment.Center
+        // ✅ Icon Container con forma expresiva de MD3 (MaterialShapes)
+        Surface(
+            shape = MaterialShapes.Cookie9Sided.toShape(),
+            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+            modifier = Modifier.size(40.dp)
         ) {
-            Icon(
-                painter = icon,
-                contentDescription = null,
-                modifier = Modifier.size(22.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    painter = icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
         }
 
         Spacer(Modifier.width(14.dp))
@@ -642,8 +687,7 @@ private fun SettingsToggleItem(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium,
+                style = MaterialTheme.typography.bodyLargeEmphasized,
                 color = MaterialTheme.colorScheme.onSurface
             )
             if (subtitle != null) {
@@ -670,6 +714,7 @@ private fun SettingsToggleItem(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun UpdateAvailableItem(
     latestVersion: String,
@@ -682,32 +727,38 @@ private fun UpdateAvailableItem(
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Icon Container with gradient
-        Box(
+        // ✅ Icon Container con gradiente + forma expresiva de MD3
+        Surface(
+            shape = MaterialShapes.Cookie9Sided.toShape(),
+            color = Color.Transparent,
             modifier = Modifier
                 .size(40.dp)
-                .clip(RoundedCornerShape(12.dp))
                 .background(
                     Brush.linearGradient(
                         colors = listOf(
                             MaterialTheme.colorScheme.tertiary.copy(alpha = 0.3f),
                             MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
                         )
-                    )
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            BadgedBox(
-                badge = {
-                    Badge(containerColor = MaterialTheme.colorScheme.error)
-                }
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.update),
-                    contentDescription = null,
-                    modifier = Modifier.size(22.dp),
-                    tint = MaterialTheme.colorScheme.primary
+                    ),
+                    shape = MaterialShapes.Cookie9Sided.toShape()
                 )
+        ) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                BadgedBox(
+                    badge = {
+                        Badge(containerColor = MaterialTheme.colorScheme.error)
+                    }
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.update),
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
         }
 
@@ -716,8 +767,7 @@ private fun UpdateAvailableItem(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = stringResource(R.string.new_version_available),
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium,
+                style = MaterialTheme.typography.bodyLargeEmphasized,
                 color = MaterialTheme.colorScheme.tertiary
             )
             Text(
@@ -727,15 +777,16 @@ private fun UpdateAvailableItem(
             )
         }
 
+        // ✅ Insignia con forma de "píldora" expresiva de MD3 (MaterialShapes.Pill)
         Surface(
-            shape = RoundedCornerShape(8.dp),
+            shape = MaterialShapes.Pill.toShape(),
             color = MaterialTheme.colorScheme.primary
         ) {
             Text(
                 text = stringResource(R.string.update_text),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
             )
         }
     }
@@ -830,6 +881,14 @@ private fun TokenEditorDialog(
     )
 }
 
+// ============================================================
+// Playlist Selection — Bottom Sheet (MD3 Expressive)
+// ============================================================
+// Un ModalBottomSheet encaja mejor que un AlertDialog para esta lista:
+// aprovecha todo el ancho de la pantalla, se puede arrastrar/descartar con
+// gesto, y no compite en altura con el teclado ni con listas largas como sí
+// le pasa a un AlertDialog centrado.
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun PlaylistSelectionDialog(onDismiss: () -> Unit) {
     val coroutineScope = rememberCoroutineScope()
@@ -849,18 +908,18 @@ private fun PlaylistSelectionDialog(onDismiss: () -> Unit) {
     }
 
     var loading by remember { mutableStateOf(true) }
-    val playlists = remember { mutableStateListOf<com.arturo254.opentune.innertube.models.PlaylistItem>() }
+    val playlists = remember { mutableStateListOf<PlaylistItem>() }
 
     LaunchedEffect(Unit) {
         loading = true
-        com.arturo254.opentune.innertube.YouTube
+        YouTube
             .library("FEmusic_liked_playlists")
             .completed()
             .onSuccess { page ->
                 playlists.clear()
                 playlists.addAll(
                     page.items
-                        .filterIsInstance<com.arturo254.opentune.innertube.models.PlaylistItem>()
+                        .filterIsInstance<PlaylistItem>()
                         .filterNot { it.id == "LM" || it.id == "SE" }
                         .reversed()
                 )
@@ -868,38 +927,40 @@ private fun PlaylistSelectionDialog(onDismiss: () -> Unit) {
         loading = false
     }
 
-    AlertDialog(
+    val sheetState = rememberModalBottomSheetState()
+
+    fun closeSheet(onClosed: () -> Unit) {
+        coroutineScope.launch { sheetState.hide() }.invokeOnCompletion {
+            if (!sheetState.isVisible) onClosed()
+        }
+    }
+
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(28.dp),
+        sheetState = sheetState,
+        dragHandle = { BottomSheetDefaults.DragHandle() },
         containerColor = MaterialTheme.colorScheme.surface,
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    com.arturo254.opentune.utils.PreferenceStore.launchEdit(context.dataStore) {
-                        this[SelectedYtmPlaylistsKey] = selectedList.joinToString(",")
-                    }
-                    onDismiss()
-                }
-            ) {
-                Text(
-                    text = stringResource(R.string.save),
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(text = stringResource(R.string.cancel_button))
-            }
-        },
-        title = {
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+        ) {
             Text(
                 text = stringResource(R.string.select_playlist_to_sync),
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.SemiBold
+                style = MaterialTheme.typography.headlineSmallEmphasized,
+                color = MaterialTheme.colorScheme.onSurface
             )
-        },
-        text = {
+            if (!loading) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = "${selectedList.size} / ${playlists.size}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Spacer(Modifier.height(12.dp))
+
             if (loading) {
                 Box(
                     modifier = Modifier
@@ -907,31 +968,34 @@ private fun PlaylistSelectionDialog(onDismiss: () -> Unit) {
                         .height(200.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(
+                    // ✅ CircularWavyProgressIndicator: loader circular ondulado de MD3 Expressive
+                    CircularWavyProgressIndicator(
                         modifier = Modifier.size(48.dp),
-                        strokeWidth = 3.dp,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.primary,
                     )
                 }
             } else {
                 LazyColumn(
-                    modifier = Modifier.height(400.dp),
+                    modifier = Modifier.heightIn(max = 420.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     items(playlists) { pl ->
                         val isSelected = selectedList.contains(pl.id)
+                        // ✅ Animación de color ligada al MotionScheme expresivo (spec de "effects",
+                        // recomendado para animaciones de color/alpha sin overshoot).
                         val backgroundColor by animateColorAsState(
                             targetValue = if (isSelected)
                                 MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
                             else
                                 Color.Transparent,
+                            animationSpec = MaterialTheme.motionScheme.fastEffectsSpec(),
                             label = "playlistItemColor"
                         )
 
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(RoundedCornerShape(16.dp))
                                 .background(backgroundColor)
                                 .clickable {
                                     if (isSelected) selectedList.remove(pl.id)
@@ -953,29 +1017,82 @@ private fun PlaylistSelectionDialog(onDismiss: () -> Unit) {
 
                             Spacer(Modifier.width(8.dp))
 
-                            AsyncImage(
-                                model = pl.thumbnail,
-                                contentDescription = null,
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .clip(RoundedCornerShape(8.dp)),
-                                contentScale = ContentScale.Crop
-                            )
+                            Box {
+                                AsyncImage(
+                                    model = pl.thumbnail,
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .clip(RoundedCornerShape(10.dp)),
+                                    contentScale = ContentScale.Crop
+                                )
+                                // ✅ Insignia de selección con forma expresiva de MD3
+                                if (isSelected) {
+                                    Surface(
+                                        shape = MaterialShapes.Circle.toShape(),
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier
+                                            .align(Alignment.BottomEnd)
+                                            .size(18.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                painter = painterResource(R.drawable.close),
+                                                contentDescription = null,
+                                                modifier = Modifier.size(10.dp),
+                                                tint = MaterialTheme.colorScheme.onPrimary
+                                            )
+                                        }
+                                    }
+                                }
+                            }
 
                             Spacer(Modifier.width(12.dp))
 
                             Text(
                                 text = pl.title,
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
+                                style = if (isSelected)
+                                    MaterialTheme.typography.bodyMediumEmphasized
+                                else
+                                    MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurface,
                                 maxLines = 2,
-                                overflow = TextOverflow.Ellipsis
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
                             )
                         }
                     }
                 }
             }
+
+            Spacer(Modifier.height(16.dp))
+
+            // Barra de acciones fija al fondo de la hoja
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                TextButton(onClick = { closeSheet(onDismiss) }) {
+                    Text(text = stringResource(R.string.cancel_button))
+                }
+                Spacer(Modifier.width(8.dp))
+                FilledTonalButton(
+                    onClick = {
+                        PreferenceStore.launchEdit(context.dataStore) {
+                            this[SelectedYtmPlaylistsKey] = selectedList.joinToString(",")
+                        }
+                        closeSheet(onDismiss)
+                    },
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.save),
+                        style = MaterialTheme.typography.labelLargeEmphasized
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(20.dp))
         }
-    )
+    }
 }

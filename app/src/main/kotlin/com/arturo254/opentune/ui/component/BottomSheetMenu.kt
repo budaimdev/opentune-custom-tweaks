@@ -4,8 +4,6 @@
  * Licensed Under GPL-3.0 | see git history for contributors
  */
 
-
-
 package com.arturo254.opentune.ui.component
 
 import androidx.compose.foundation.background
@@ -17,14 +15,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -43,9 +39,12 @@ class MenuState(
 ) {
     var isVisible by mutableStateOf(isVisible)
     var content by mutableStateOf(content)
+    internal var dialogContent by mutableStateOf<(@Composable () -> Unit)?>(null)
+        private set
 
     @OptIn(ExperimentalMaterial3Api::class)
     fun show(content: @Composable ColumnScope.() -> Unit) {
+        dialogContent = null
         isVisible = true
         this.content = content
     }
@@ -53,6 +52,15 @@ class MenuState(
     @OptIn(ExperimentalMaterial3Api::class)
     fun dismiss() {
         isVisible = false
+    }
+
+    fun showDialog(content: @Composable () -> Unit) {
+        isVisible = false
+        dialogContent = content
+    }
+
+    fun dismissDialog() {
+        dialogContent = null
     }
 }
 
@@ -65,6 +73,8 @@ fun BottomSheetMenu(
 ) {
     val focusManager = LocalFocusManager.current
 
+    state.dialogContent?.invoke()
+
     if (state.isVisible) {
         ModalBottomSheet(
             onDismissRequest = {
@@ -75,20 +85,21 @@ fun BottomSheetMenu(
             contentColor = MaterialTheme.colorScheme.onSurface,
             dragHandle = {
                 Box(
-                    modifier = Modifier
-                        .padding(vertical = 12.dp)
-                        .size(width = 40.dp, height = 4.dp)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
+                    modifier =
+                        Modifier
+                            .padding(vertical = 12.dp)
+                            .size(width = 40.dp, height = 4.dp)
+                            .clip(RoundedCornerShape(2.dp))
+                            .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)),
                 )
             },
-            modifier = modifier.fillMaxHeight()
+            modifier = modifier.fillMaxHeight(),
         ) {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp)
-                    .weight(1f, fill = false)
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp),
             ) {
                 state.content(this)
             }

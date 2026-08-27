@@ -132,6 +132,7 @@ import androidx.compose.ui.util.fastFirstOrNull
 import androidx.compose.ui.util.fastForEach
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import android.net.Uri
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.toColorInt
 import androidx.core.net.toUri
@@ -167,6 +168,7 @@ import com.arturo254.opentune.constants.FloatingToolbarHeight
 import com.arturo254.opentune.constants.FloatingToolbarHorizontalPadding
 import com.arturo254.opentune.constants.HasPressedStarKey
 import com.arturo254.opentune.constants.LaunchCountKey
+import com.arturo254.opentune.constants.EnableLiquidGlassKey
 import com.arturo254.opentune.constants.LiquidGlassNavBarKey
 import com.arturo254.opentune.constants.LyricsSyncOffsetKey
 import com.arturo254.opentune.constants.MiniPlayerBottomSpacing
@@ -198,6 +200,8 @@ import com.arturo254.opentune.innertube.models.AlbumItem
 import com.arturo254.opentune.innertube.models.ArtistItem
 import com.arturo254.opentune.innertube.models.PlaylistItem
 import com.arturo254.opentune.innertube.models.SongItem
+import com.arturo254.opentune.extensions.toMediaItem
+import com.arturo254.opentune.utils.LocalMediaScanner
 import com.arturo254.opentune.models.toMediaMetadata
 import com.arturo254.opentune.playback.DownloadUtil
 import com.arturo254.opentune.playback.MusicService
@@ -221,6 +225,9 @@ import com.arturo254.opentune.ui.component.LocalMenuState
 import com.arturo254.opentune.ui.component.MenuState
 import com.arturo254.opentune.ui.component.TopSearch
 import com.arturo254.opentune.ui.component.rememberBottomSheetState
+import com.arturo254.opentune.ui.component.LocalBackdrop
+import com.arturo254.opentune.ui.component.layerBackdrop
+import com.arturo254.opentune.ui.component.rememberBackdrop
 import com.arturo254.opentune.ui.component.shimmer.ShimmerTheme
 import com.arturo254.opentune.ui.menu.YouTubeSongMenu
 import com.arturo254.opentune.ui.player.BottomSheetPlayer
@@ -243,7 +250,6 @@ import com.arturo254.opentune.ui.theme.extractThemeColor
 import com.arturo254.opentune.ui.utils.appBarScrollBehavior
 import com.arturo254.opentune.ui.utils.backToMain
 import com.arturo254.opentune.ui.utils.resetHeightOffset
-import com.arturo254.opentune.utils.PreferenceStore
 import com.arturo254.opentune.utils.SyncUtils
 import com.arturo254.opentune.utils.UpdateNotificationManager
 import com.arturo254.opentune.utils.Updater
@@ -265,12 +271,13 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.net.URLDecoder
 import java.net.URLEncoder
 import java.util.Locale
 import javax.inject.Inject
 import kotlin.random.Random
 import kotlin.time.Duration.Companion.days
+import com.arturo254.opentune.canvas.CanvasCacheManager
+import com.arturo254.opentune.utils.PreferenceStore
 
 @Suppress("DEPRECATION", "ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
 @AndroidEntryPoint
@@ -319,6 +326,39 @@ class MainActivity : ComponentActivity() {
         val mediaItem: MediaItem,
     )
 
+    private fun playLocalAudioUri(uri: Uri) {
+        runCatching {
+            contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+
+        lifecycleScope.launch {
+            // Upsert into the library DB (like the "On Device" scanner does) rather than
+            // building a standalone MediaItem: now-playing state, the notification, the queue
+            // UI and duration are all driven off `database.song(mediaId)` lookups in
+            // MusicService, so an item that isn't in the DB shows up with no metadata at all.
+            val song = runCatching {
+                LocalMediaScanner.scanUri(this@MainActivity, database, uri)
+            }.getOrNull()
+
+            val mediaItem = song?.toMediaItem() ?: MediaItem
+                .Builder()
+                .setMediaId("LMOPEN${uri.hashCode()}")
+                .setUri(uri)
+                .setMediaMetadata(
+                    androidx.media3.common.MediaMetadata
+                        .Builder()
+                        .setTitle(uri.lastPathSegment ?: "Unknown")
+                        .setArtist("Unknown artist")
+                        .setMediaType(androidx.media3.common.MediaMetadata.MEDIA_TYPE_MUSIC)
+                        .build(),
+                ).build()
+
+            pendingDeepLinkSong = PendingDeepLinkSong(mediaItem = mediaItem)
+            startMusicServiceSafely()
+            playPendingDeepLinkSongIfReady()
+        }
+    }
+
     private fun playPendingDeepLinkSongIfReady() {
         val pending = pendingDeepLinkSong ?: return
         val connection = playerConnection ?: return
@@ -345,6 +385,9 @@ class MainActivity : ComponentActivity() {
 
 
     override fun onStart() {
+
+        CanvasCacheManager.init(this)
+
         super.onStart()
         isMusicServiceBound =
             bindService(
@@ -567,16 +610,24 @@ class MainActivity : ComponentActivity() {
             val darkTheme by rememberEnumPreference(DarkModeKey, defaultValue = DarkMode.AUTO)
             val useSystemFont by rememberPreference(UseSystemFontKey, defaultValue = false)
             val lyricsSyncOffset by rememberPreference(LyricsSyncOffsetKey, defaultValue = 0)
+            val enableLiquidGlass by rememberPreference(EnableLiquidGlassKey, defaultValue = false)
+            val backdrop = rememberBackdrop()
             val isSystemInDarkTheme = isSystemInDarkTheme()
             val useDarkTheme =
-                remember(darkTheme, isSystemInDarkTheme) {
-                    if (darkTheme == DarkMode.AUTO) isSystemInDarkTheme else darkTheme == DarkMode.ON
+                remember(darkTheme, isSystemInDarkTheme, enableLiquidGlass) {
+                    if (enableLiquidGlass) {
+                        true
+                    } else if (darkTheme == DarkMode.AUTO) {
+                        isSystemInDarkTheme
+                    } else {
+                        darkTheme == DarkMode.ON
+                    }
                 }
             LaunchedEffect(useDarkTheme) {
                 setSystemBarAppearance(useDarkTheme)
             }
             val pureBlackEnabled by rememberPreference(PureBlackKey, defaultValue = false)
-            val pureBlack = pureBlackEnabled && useDarkTheme
+            val pureBlack = pureBlackEnabled && useDarkTheme && !enableLiquidGlass
 
             val customThemeSeedPalette = remember(customThemeColorValue) {
                 if (customThemeColorValue.startsWith("#")) {
@@ -870,7 +921,8 @@ class MainActivity : ComponentActivity() {
                             isPlayerExpanded && playerFullscreen -> {
                                 controller.systemBarsBehavior =
                                     WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-                                controller.hide(WindowInsetsCompat.Type.systemBars())
+                                controller.hide(WindowInsetsCompat.Type.statusBars())
+                                controller.show(WindowInsetsCompat.Type.navigationBars())
                             }
 
                             isYearInMusicScreen -> {
@@ -980,24 +1032,13 @@ class MainActivity : ComponentActivity() {
                         if (navBackStackEntry?.destination?.route?.startsWith("search/") == true) {
                             val searchQuery =
                                 withContext(Dispatchers.IO) {
-                                    if (navBackStackEntry
+                                    Uri.decode(
+                                        navBackStackEntry
                                             ?.arguments
                                             ?.getString(
                                                 "query",
                                             )!!
-                                            .contains(
-                                                "%",
-                                            )
-                                    ) {
-                                        navBackStackEntry?.arguments?.getString(
-                                            "query",
-                                        )!!
-                                    } else {
-                                        URLDecoder.decode(
-                                            navBackStackEntry?.arguments?.getString("query")!!,
-                                            "UTF-8"
-                                        )
-                                    }
+                                    )
                                 }
                             onQueryChange(
                                 TextFieldValue(
@@ -1147,6 +1188,7 @@ class MainActivity : ComponentActivity() {
                         LocalSyncUtils provides syncUtils,
                         LocalBottomSheetPageState provides bottomSheetPageState,
                         LocalMenuState provides menuState,
+                        LocalBackdrop provides backdrop,
                     ) {
                         Row {
                             AnimatedVisibility(useRail && shouldShowNavigationBar) {
@@ -1708,6 +1750,11 @@ class MainActivity : ComponentActivity() {
                                     .fillMaxSize()
                                     .nestedScroll(searchBarScrollBehavior.nestedScrollConnection)
                             ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .let { if (enableLiquidGlass) it.layerBackdrop(backdrop) else it }
+                                ) {
                                 var transitionDirection =
                                     AnimatedContentTransitionScope.SlideDirection.Left
 
@@ -1836,6 +1883,7 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                         }
+                        }
 
                         BottomSheetMenu(
                             state = LocalMenuState.current,
@@ -1904,8 +1952,17 @@ class MainActivity : ComponentActivity() {
             return
         }
 
-        val uri = intent.data ?: intent.extras?.getString(Intent.EXTRA_TEXT)?.toUri() ?: return
+        val uri = intent.data
+            ?: (intent.extras?.get(Intent.EXTRA_STREAM) as? Uri)
+            ?: intent.extras?.getString(Intent.EXTRA_TEXT)?.toUri()
+            ?: return
         val coroutineScope = lifecycleScope
+
+        val mimeType = intent.type ?: contentResolver.getType(uri)
+        if ((uri.scheme == "content" || uri.scheme == "file") && mimeType?.startsWith("audio/") == true) {
+            playLocalAudioUri(uri)
+            return
+        }
 
         val authority = uri.authority?.lowercase()
         if (uri.scheme.equals("OpenTune", ignoreCase = true) && authority == "together") {

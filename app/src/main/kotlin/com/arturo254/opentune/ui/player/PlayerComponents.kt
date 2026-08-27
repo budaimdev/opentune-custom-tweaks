@@ -83,6 +83,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.buildAnnotatedString
@@ -251,7 +252,8 @@ fun PlayerTopActions(
     state: BottomSheetState,
     bottomSheetPageState: BottomSheetPageState,
     context: Context,
-    currentSongLiked: Boolean
+    currentSongLiked: Boolean,
+    isLocalSong: Boolean = false
 ) {
     when (playerDesignStyle) {
         PlayerDesignStyle.V2 -> {
@@ -269,6 +271,7 @@ fun PlayerTopActions(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                if (!isLocalSong) {
                 Box(
                     modifier = Modifier
                         .size(42.dp)
@@ -294,6 +297,7 @@ fun PlayerTopActions(
                             .align(Alignment.Center)
                             .size(24.dp)
                     )
+                }
                 }
 
                 Box(
@@ -326,6 +330,7 @@ fun PlayerTopActions(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                if (!isLocalSong) {
                 Box(
                     modifier = Modifier
                         .size(36.dp)
@@ -349,6 +354,7 @@ fun PlayerTopActions(
                         tint = textBackgroundColor.copy(alpha = 0.7f),
                         modifier = Modifier.size(20.dp)
                     )
+                }
                 }
                 Box(
                     modifier = Modifier
@@ -377,6 +383,7 @@ fun PlayerTopActions(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                if (!isLocalSong) {
                 Surface(
                     onClick = {
                         val intent = Intent().apply {
@@ -403,6 +410,7 @@ fun PlayerTopActions(
                             modifier = Modifier.size(22.dp)
                         )
                     }
+                }
                 }
 
                 Surface(
@@ -468,6 +476,7 @@ fun PlayerTopActions(
         }
 
         PlayerDesignStyle.V1 -> {
+            if (!isLocalSong) {
             Box(
                 modifier =
                     Modifier
@@ -496,6 +505,7 @@ fun PlayerTopActions(
                             .align(Alignment.Center)
                             .size(24.dp),
                 )
+            }
             }
 
             Spacer(modifier = Modifier.size(12.dp))
@@ -538,6 +548,7 @@ fun PlayerTopActions(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                if (!isLocalSong) {
                 Surface(
                     onClick = {
                         val intent = Intent().apply {
@@ -567,6 +578,7 @@ fun PlayerTopActions(
                             modifier = Modifier.size(20.dp)
                         )
                     }
+                }
                 }
 
                 Surface(
@@ -2195,7 +2207,8 @@ fun PlayerControlsContent(
             state = state,
             bottomSheetPageState = bottomSheetPageState,
             context = context,
-            currentSongLiked = currentSongLiked
+            currentSongLiked = currentSongLiked,
+            isLocalSong = currentSong?.song?.isLocal == true
         )
     }
 
@@ -2760,13 +2773,13 @@ fun V8PlayerBackdrop(
             if (artworkUrl != null) {
                 Box(modifier = Modifier.fillMaxSize()) {
                     if (canvasArtwork != null && !canvasArtwork.preferredAnimationUrl.isNullOrBlank()) {
-                        // ✅ Canvas con RESIZE_MODE_COVER (igual que la imagen estática)
+                        // ✅ Canvas con RESIZE_MODE_ZOOM para mantener aspecto sin estiramiento
                         CanvasArtworkPlayer(
                             primaryUrl = canvasArtwork.animated,
                             fallbackUrl = canvasArtwork.videoUrl,
                             isPlaying = isPlaying,
                             modifier = Modifier.fillMaxSize(),
-                            resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FILL  // ← FILL para cubrir todo el espacio
+                            resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM  // ← ZOOM mantiene aspecto
                         )
                         // Overlay con gradiente
                         Box(
@@ -3127,10 +3140,7 @@ fun V8PlayerControlsContent(
                         .clip(RoundedCornerShape(4.dp))
                 )
                 Text(
-                    text = buildString {
-                        append("A continuación: ")
-                        append(nextUpMetadata.title)
-                    },
+                    text = stringResource(R.string.up_next_prefix, nextUpMetadata.title),
                     style = MaterialTheme.typography.labelSmall,
                     color = textBackgroundColor.copy(alpha = 0.55f),
                     maxLines = 1,

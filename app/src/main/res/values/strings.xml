@@ -52,6 +52,13 @@
     <string name="filter_albums">Albums</string>
     <string name="filter_artists">Artists</string>
     <string name="filter_playlists">Playlists</string>
+    <string name="filter_on_device">On device</string>
+    <string name="local_music">Local music</string>
+    <string name="scan_local_music">Scan for local music</string>
+    <string name="searching_for_media">Searching for media…</string>
+    <string name="local_music_permission_rationale">Allow access to your device\'s audio files to add them to your library and play them offline.</string>
+    <string name="grant_permission">Grant permission</string>
+    <string name="no_local_music_found">No local music found. Pull to refresh or add audio files to your device.</string>
     <string name="filter_community_playlists">Community playlists</string>
     <string name="filter_featured_playlists">Featured playlists</string>
     <string name="filter_bookmarked">Bookmarked</string>
@@ -355,6 +362,8 @@
     <!-- End of Color Palette -->
 
     <string name="dark_theme">Dark theme</string>
+    <string name="enable_liquid_glass">Enable Liquid Glass</string>
+    <string name="enable_liquid_glass_desc">Apply frosted glass blur and vibrancy to the bottom navigation and miniplayer. Automatically forces dark theme.</string>
     <string name="dark_theme_on">On</string>
     <string name="dark_theme_off">Off</string>
     <string name="show_button">Show button</string>
@@ -837,4 +846,7 @@ OpenTune will only extract your token, and everything else is stored locally.</s
     <string name="reorder_lyrics_providers">Reorder Lyrics Providers</string>
     <string name="lyrics_provider_order">Lyrics Provider Order</string>
     <string name="lyrics_provider_priority">Priority: %1$s</string>
+    <string name="select_option">Select</string>
+    <string name="enter_value">Enter Value</string>
+    <string name="remove_from_library_confirm">Remove \\u0022%1$s\\u0022 from your library?</string>
 </resources>

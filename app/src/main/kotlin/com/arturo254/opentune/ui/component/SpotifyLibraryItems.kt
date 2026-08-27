@@ -102,7 +102,7 @@ fun SpotifyTrackListItem(
         badges = badges,
         thumbnailContent = {
             ItemThumbnail(
-                thumbnailUrl = SpotifyMapper.getTrackThumbnail(track)?.resize(200, 200),
+                thumbnailUrl = SpotifyMapper.getTrackThumbnail(track)?.resize(200, 200,),
                 albumIndex = albumIndex,
                 isSelected = isSelected,
                 isActive = isActive,

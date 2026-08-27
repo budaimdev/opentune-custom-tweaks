@@ -4,8 +4,6 @@
  * Licensed Under GPL-3.0 | see git history for contributors
  */
 
-
-
 package com.arturo254.opentune.ui.screens.settings
 
 import android.content.Intent
@@ -43,7 +41,6 @@ import androidx.core.net.toUri
 @Composable
 fun ContentSettings(
     navController: NavController,
-    scrollBehavior: TopAppBarScrollBehavior,
 ) {
     val context = LocalContext.current
 
@@ -92,14 +89,14 @@ fun ContentSettings(
             onValueSelected = { newValue ->
                 val locale = Locale.getDefault()
                 val languageTag = locale.toLanguageTag().replace("-Hant", "")
- 
+
                 YouTube.locale = YouTube.locale.copy(
                     hl = newValue.takeIf { it != SYSTEM_DEFAULT }
                         ?: locale.language.takeIf { it in LanguageCodeToName }
                         ?: languageTag.takeIf { it in LanguageCodeToName }
                         ?: "en"
                 )
- 
+
                 onContentLanguageChange(newValue)
             }
         )
@@ -113,13 +110,13 @@ fun ContentSettings(
             },
             onValueSelected = { newValue ->
                 val locale = Locale.getDefault()
- 
+
                 YouTube.locale = YouTube.locale.copy(
                     gl = newValue.takeIf { it != SYSTEM_DEFAULT }
                         ?: locale.country.takeIf { it in CountryCodeToName }
                         ?: "US"
                 )
- 
+
                 onContentCountryChange(newValue)
            }
         )

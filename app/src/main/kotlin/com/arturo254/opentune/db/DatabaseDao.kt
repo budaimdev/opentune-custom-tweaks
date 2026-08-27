@@ -183,6 +183,10 @@ interface DatabaseDao {
     fun songsByPlayTimeAscNoVideo(): Flow<List<Song>>
 
     @Transaction
+    @Query("SELECT * FROM song WHERE isLocal ORDER BY title COLLATE NOCASE")
+    fun localSongs(): Flow<List<Song>>
+
+    @Transaction
     @Query("SELECT * FROM song WHERE liked ORDER BY rowId")
     fun likedSongsByRowIdAsc(): Flow<List<Song>>
 
@@ -1423,7 +1427,7 @@ interface DatabaseDao {
         update(
             artist.copy(
                 name = artistPage.artist.title,
-                thumbnailUrl = artistPage.artist.thumbnail?.resize(544, 544),
+                thumbnailUrl = artistPage.artist.thumbnail?.resize(544, 544,),
                 lastUpdateTime = LocalDateTime.now()
             )
         )

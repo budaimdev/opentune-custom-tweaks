@@ -77,6 +77,11 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.arturo254.opentune.R
 import com.arturo254.opentune.ui.screens.Screens
+import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.animation.core.Animatable
+import com.arturo254.opentune.constants.EnableLiquidGlassKey
+import com.arturo254.opentune.utils.rememberPreference
 
 @Composable
 fun FloatingNavigationToolbar(
@@ -95,12 +100,19 @@ fun FloatingNavigationToolbar(
     isSelected: (Screens) -> Boolean,
     onItemClick: (Screens, Boolean) -> Unit,
 ) {
-    val toolbarContainerColor = floatingToolbarContainerColor(pureBlack = pureBlack)
+    val enableLiquidGlass by rememberPreference(EnableLiquidGlassKey, defaultValue = false)
+    val toolbarContainerColor = if (enableLiquidGlass) Color.Transparent else floatingToolbarContainerColor(pureBlack = pureBlack)
     val toolbarColors = FloatingToolbarDefaults.standardFloatingToolbarColors(
         toolbarContainerColor = toolbarContainerColor,
     )
     val hasOverflowAction = onShuffleClick != null && shuffleIconRes != null
     val hasFabAction = onFabClick != null && fabIconRes != null
+
+    val toolbarModifier = Modifier
+        .widthIn(max = 480.dp)
+        .let {
+            if (enableLiquidGlass) it.graphicsLayer { shadowElevation = 0f } else it
+        }
 
     BoxWithConstraints(
         modifier = modifier.fillMaxWidth(),
@@ -121,7 +133,7 @@ fun FloatingNavigationToolbar(
                         musicRecognitionContentDescription = musicRecognitionContentDescription,
                     )
                 },
-                modifier = Modifier.widthIn(max = 480.dp),
+                modifier = toolbarModifier,
                 colors = toolbarColors,
                 scrollBehavior = scrollBehavior,
                 animationSpec = FloatingToolbarDefaults.animationSpec(),
@@ -145,7 +157,7 @@ fun FloatingNavigationToolbar(
                         contentDescription = fabContentDescription,
                     )
                 },
-                modifier = Modifier.widthIn(max = 480.dp),
+                modifier = toolbarModifier,
                 colors = toolbarColors,
                 scrollBehavior = scrollBehavior,
                 animationSpec = FloatingToolbarDefaults.animationSpec(),
@@ -161,7 +173,11 @@ fun FloatingNavigationToolbar(
         } else {
             HorizontalFloatingToolbar(
                 expanded = true,
-                modifier = Modifier.widthIn(max = 420.dp),
+                modifier = Modifier
+                    .widthIn(max = 420.dp)
+                    .let {
+                        if (enableLiquidGlass) it.graphicsLayer { shadowElevation = 0f } else it
+                    },
                 colors = toolbarColors,
                 scrollBehavior = scrollBehavior,
             ) {
@@ -211,7 +227,27 @@ private fun ToolbarItemsContainer(
         label = "pillOffset"
     )
 
-    Box(modifier = Modifier.height(IntrinsicSize.Min)) {
+    val enableLiquidGlass by rememberPreference(EnableLiquidGlassKey, defaultValue = false)
+    val layer = rememberGraphicsLayer()
+    val luminanceAnimation = remember { Animatable(0.3f) }
+    val backdrop = LocalBackdrop.current
+
+    Box(
+        modifier = Modifier
+            .let {
+                if (enableLiquidGlass && backdrop != null) {
+                    it
+                        .drawBackdropCustomShape(
+                            backdrop = backdrop,
+                            layer = layer,
+                            luminanceAnimation = luminanceAnimation.value,
+                            shape = CircleShape
+                        )
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                } else it
+            }
+            .height(IntrinsicSize.Min)
+    ) {
         if (targetWidth > 0.dp) {
             Box(
                 modifier = Modifier
@@ -220,7 +256,7 @@ private fun ToolbarItemsContainer(
                     .fillMaxHeight()
                     .background(
                         color = floatingToolbarSelectedItemContainerColor(pureBlack),
-                        shape = RoundedCornerShape(24.dp)
+                        shape = CircleShape
                     )
             )
         }
@@ -258,6 +294,7 @@ private fun FloatingToolbarOverflowAction(
 
     Box {
         FloatingToolbarDefaults.VibrantFloatingActionButton(
+            shape = CircleShape,
             onClick = { fabMenuExpanded = !fabMenuExpanded },
             containerColor = floatingToolbarFabContainerColor(pureBlack = pureBlack),
             contentColor = floatingToolbarFabContentColor(pureBlack = pureBlack),
@@ -381,7 +418,7 @@ private fun FloatingNavigationToolbarItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val shape = RoundedCornerShape(24.dp)
+    val shape = CircleShape
     val showLabel = selected && showSelectedLabel && screen.route != Screens.Search.route
     val transition = updateTransition(targetState = selected, label = "navItem_${screen.route}")
 

@@ -8,6 +8,7 @@
 
 package com.arturo254.opentune.ui.screens.settings
 
+import android.annotation.SuppressLint
 import android.os.Build
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.border
@@ -57,6 +58,7 @@ import com.arturo254.opentune.constants.DefaultOpenTabKey
 import com.arturo254.opentune.constants.DisableBlurKey
 import com.arturo254.opentune.constants.DynamicThemeKey
 import com.arturo254.opentune.constants.EnableHapticFeedbackKey
+import com.arturo254.opentune.constants.EnableLiquidGlassKey
 import com.arturo254.opentune.constants.GridItemSize
 import com.arturo254.opentune.constants.GridItemsSizeKey
 import com.arturo254.opentune.constants.HidePlayerThumbnailKey
@@ -81,6 +83,7 @@ import com.arturo254.opentune.constants.ShowCachedPlaylistKey
 import com.arturo254.opentune.constants.ShowDownloadedPlaylistKey
 import com.arturo254.opentune.constants.ShowHomeCategoryChipsKey
 import com.arturo254.opentune.constants.ShowLikedPlaylistKey
+import com.arturo254.opentune.constants.ShowLocalPlaylistKey
 import com.arturo254.opentune.constants.ShowTagsInLibraryKey
 import com.arturo254.opentune.constants.ShowTopPlaylistKey
 import com.arturo254.opentune.constants.SliderStyle
@@ -108,6 +111,7 @@ import com.arturo254.opentune.utils.rememberPreference
 import timber.log.Timber
 import kotlin.math.roundToInt
 
+@SuppressLint("DefaultLocale")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppearanceSettings(
@@ -125,6 +129,10 @@ fun AppearanceSettings(
     val (darkMode, onDarkModeChange) = rememberEnumPreference(
         DarkModeKey,
         defaultValue = DarkMode.AUTO
+    )
+    val (enableLiquidGlass, onEnableLiquidGlassChange) = rememberPreference(
+        EnableLiquidGlassKey,
+        defaultValue = false
     )
     val (playerDesignStyle, onPlayerDesignStyleChange) = rememberEnumPreference(
         PlayerDesignStyleKey,
@@ -225,6 +233,10 @@ fun AppearanceSettings(
     )
     val (showCachedPlaylist, onShowCachedPlaylistChange) = rememberPreference(
         ShowCachedPlaylistKey,
+        defaultValue = true
+    )
+    val (showLocalPlaylist, onShowLocalPlaylistChange) = rememberPreference(
+        ShowLocalPlaylistKey,
         defaultValue = true
     )
     val (showTagsInLibrary, onShowTagsInLibraryChange) = rememberPreference(
@@ -365,26 +377,49 @@ fun AppearanceSettings(
             )
         }
 
+        SwitchPreference(
+            title = { Text(stringResource(R.string.enable_liquid_glass)) },
+            description = stringResource(R.string.enable_liquid_glass_desc),
+            icon = { Icon(painterResource(R.drawable.palette), null) },
+            checked = enableLiquidGlass,
+            onCheckedChange = { newValue ->
+                onEnableLiquidGlassChange(newValue)
+                if (newValue) {
+                    onDarkModeChange(DarkMode.ON)
+                }
+            },
+        )
+
         EnumListPreference(
             title = { Text(stringResource(R.string.dark_theme)) },
             icon = { Icon(painterResource(R.drawable.dark_mode), null) },
-            selectedValue = darkMode,
+            selectedValue = if (enableLiquidGlass) DarkMode.ON else darkMode,
             onValueSelected = onDarkModeChange,
             valueText = {
-                when (it) {
-                    DarkMode.ON -> stringResource(R.string.dark_theme_on)
-                    DarkMode.OFF -> stringResource(R.string.dark_theme_off)
-                    DarkMode.AUTO -> stringResource(R.string.dark_theme_follow_system)
+                if (enableLiquidGlass) {
+                    stringResource(R.string.dark_theme_on)
+                } else {
+                    when (it) {
+                        DarkMode.ON -> stringResource(R.string.dark_theme_on)
+                        DarkMode.OFF -> stringResource(R.string.dark_theme_off)
+                        DarkMode.AUTO -> stringResource(R.string.dark_theme_follow_system)
+                    }
                 }
             },
+            isEnabled = !enableLiquidGlass
         )
 
         AnimatedVisibility(useDarkTheme) {
             SwitchPreference(
                 title = { Text(stringResource(R.string.pure_black)) },
                 icon = { Icon(painterResource(R.drawable.contrast), null) },
-                checked = pureBlack,
-                onCheckedChange = onPureBlackChange,
+                checked = pureBlack && useDarkTheme && !enableLiquidGlass,
+                onCheckedChange = { newValue ->
+                    if (useDarkTheme && !enableLiquidGlass) {
+                        onPureBlackChange(newValue)
+                    }
+                },
+                isEnabled = useDarkTheme && !enableLiquidGlass
             )
         }
 
@@ -851,6 +886,7 @@ fun AppearanceSettings(
                     LibraryFilter.PLAYLISTS -> stringResource(R.string.playlists)
                     LibraryFilter.LIBRARY -> stringResource(R.string.filter_library)
                     LibraryFilter.SPOTIFY -> stringResource(R.string.spotify)
+                    LibraryFilter.ON_DEVICE -> stringResource(R.string.filter_on_device)
                 }
             },
             onValueSelected = onDefaultChipChange,
@@ -859,7 +895,7 @@ fun AppearanceSettings(
 
         PreferenceEntry(
             title = { Text("Always On Display") },
-            description = "Estilos, formas y opciones de personalización",
+            description = stringResource(R.string.always_on_display_description),
             icon = { Icon(painterResource(R.drawable.dark_mode), null) },
             onClick = { navController.navigate("settings/appearance/always_on_display") }
         )
@@ -944,6 +980,13 @@ fun AppearanceSettings(
             icon = { Icon(painterResource(R.drawable.cached), null) },
             checked = showCachedPlaylist,
             onCheckedChange = onShowCachedPlaylistChange
+        )
+
+        SwitchPreference(
+            title = { Text(stringResource(R.string.filter_on_device)) },
+            icon = { Icon(painterResource(R.drawable.folder), null) },
+            checked = showLocalPlaylist,
+            onCheckedChange = onShowLocalPlaylistChange
         )
     }
 
@@ -1035,9 +1078,4 @@ enum class LyricsPosition {
     LEFT,
     CENTER,
     RIGHT,
-}
-
-enum class PlayerTextAlignment {
-    SIDED,
-    CENTER,
 }

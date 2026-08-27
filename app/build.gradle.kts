@@ -83,8 +83,9 @@ android {
         applicationId = "cz.budaimdev.opentune"
         minSdk = 26
         targetSdk = 36
-        versionCode = 131
-        versionName = "3.0.4"
+        versionCode = 133
+        versionName = "3.0.6"
+//        versionName = "3.0.2-$gitCommit"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
