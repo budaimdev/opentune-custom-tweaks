@@ -29,8 +29,6 @@ jobs:
       - name: Kompilace Release APK a AAB
         run: |
           ./gradlew assembleUniversalRelease --no-parallel
-          ./gradlew assembleArmeabiRelease --no-parallel
-          ./gradlew assembleX86Release --no-parallel
           ./gradlew bundleRelease --no-parallel
 
       - name: Diagnostika – kde se soubory reálně vygenerovaly
