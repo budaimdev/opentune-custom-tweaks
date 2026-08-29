@@ -26,7 +26,6 @@ jobs:
       - name: Udělení práv pro Gradle wrapper
         run: chmod +x ./gradlew
 
-      # Spustí čistý build a vygeneruje produkční APK i AAB (App Bundle)
       - name: Kompilace Release APK a AAB
         run: |
           ./gradlew assembleUniversalRelease --no-parallel
@@ -34,12 +33,20 @@ jobs:
           ./gradlew assembleX86Release --no-parallel
           ./gradlew bundleRelease --no-parallel
 
-      # Podepsání výsledných APK a AAB pomocí tvého keystore souboru
+      - name: Diagnostika – kde se soubory reálně vygenerovaly
+        run: find app/build/outputs -type f \( -name "*.apk" -o -name "*.aab" \)
+
+      - name: Sesbírání nepodepsaných souborů do jednoho adresáře
+        run: |
+          mkdir -p unsigned-artifacts
+          find app/build/outputs -type f \( -name "*.apk" -o -name "*.aab" \) -exec cp {} unsigned-artifacts/ \;
+          ls -l unsigned-artifacts
+
       - name: Podepsání Release APK a AAB
         uses: r0adkll/sign-android-release@v1
         id: sign_app
         with:
-          releaseDirectory: app/build/outputs
+          releaseDirectory: unsigned-artifacts
           signingKeyBase64: ${{ secrets.ANDROID_SIGNING_KEY }}
           alias: ${{ secrets.ANDROID_ALIAS }}
           keyStorePassword: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
