@@ -16,6 +16,7 @@ import android.content.res.Configuration
 import android.os.SystemClock
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -28,8 +29,30 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -92,10 +115,10 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.media3.common.C
 import androidx.media3.common.Player.STATE_BUFFERING
+import androidx.media3.common.Player.STATE_ENDED
 import androidx.media3.common.Player.STATE_READY
 import androidx.navigation.NavController
 import androidx.palette.graphics.Palette
@@ -113,12 +136,11 @@ import com.arturo254.opentune.constants.BlurRadiusKey
 import com.arturo254.opentune.constants.CanvasSource
 import com.arturo254.opentune.constants.DarkModeKey
 import com.arturo254.opentune.constants.DisableBlurKey
+import com.arturo254.opentune.constants.EnableLiquidGlassKey
 import com.arturo254.opentune.constants.PlayerBackgroundStyle
 import com.arturo254.opentune.constants.PlayerBackgroundStyleKey
-import com.arturo254.opentune.constants.PlayerButtonsStyleKey
-import com.arturo254.opentune.constants.EnableLiquidGlassKey
 import com.arturo254.opentune.constants.PlayerButtonsStyle
-import com.arturo254.opentune.constants.PlayerCustomImageUriKey
+import com.arturo254.opentune.constants.PlayerButtonsStyleKey
 import com.arturo254.opentune.constants.PlayerCustomBlurKey
 import com.arturo254.opentune.constants.PlayerCustomBrightnessKey
 import com.arturo254.opentune.constants.PlayerCustomContrastKey
@@ -131,6 +153,7 @@ import com.arturo254.opentune.constants.SliderStyle
 import com.arturo254.opentune.constants.SliderStyleKey
 import com.arturo254.opentune.extensions.metadata
 import com.arturo254.opentune.extensions.togglePlayPause
+import com.arturo254.opentune.extensions.toggleRepeatMode
 import com.arturo254.opentune.models.MediaMetadata
 import com.arturo254.opentune.ui.component.BottomSheet
 import com.arturo254.opentune.ui.component.BottomSheetState
@@ -332,11 +355,13 @@ fun BottomSheetPlayer(
     val currentSong by playerConnection.currentSong.collectAsState(initial = null)
     val currentSongLiked = currentSong?.song?.liked == true
     val currentFormat by playerConnection.currentFormat.collectAsState(initial = null)
+    val currentLyrics by playerConnection.currentLyrics.collectAsState(initial = null)
     val queueWindows by playerConnection.queueWindows.collectAsState()
     val currentWindowIndex by playerConnection.currentWindowIndex.collectAsState()
     val playerVolume = playerConnection.service.playerVolume.collectAsState()
 
     val repeatMode by playerConnection.repeatMode.collectAsState()
+    val shuffleModeEnabled by playerConnection.shuffleModeEnabled.collectAsState()
 
     val canSkipPrevious by playerConnection.canSkipPrevious.collectAsState()
     val canSkipNext by playerConnection.canSkipNext.collectAsState()
@@ -385,8 +410,8 @@ fun BottomSheetPlayer(
         }
     }
 
-    LaunchedEffect(mediaMetadata?.id, playerBackground) {
-        if (playerBackground == PlayerBackgroundStyle.GRADIENT || playerBackground == PlayerBackgroundStyle.COLORING || playerBackground == PlayerBackgroundStyle.BLUR_GRADIENT || playerBackground == PlayerBackgroundStyle.GLOW || playerBackground == PlayerBackgroundStyle.GLOW_ANIMATED) {
+    LaunchedEffect(mediaMetadata?.id, playerBackground, playerDesignStyle) {
+        if (playerDesignStyle == PlayerDesignStyle.SPOTIFY || playerBackground == PlayerBackgroundStyle.SPOTIFY || playerBackground == PlayerBackgroundStyle.GRADIENT || playerBackground == PlayerBackgroundStyle.COLORING || playerBackground == PlayerBackgroundStyle.BLUR_GRADIENT || playerBackground == PlayerBackgroundStyle.GLOW || playerBackground == PlayerBackgroundStyle.GLOW_ANIMATED) {
             val currentMetadata = mediaMetadata
             if (currentMetadata != null && currentMetadata.thumbnailUrl != null) {
                 // Check cache first
@@ -451,6 +476,7 @@ fun BottomSheetPlayer(
             PlayerBackgroundStyle.GLOW -> Color.White
             PlayerBackgroundStyle.GLOW_ANIMATED -> Color.White
             PlayerBackgroundStyle.CUSTOM -> Color.White
+            PlayerBackgroundStyle.SPOTIFY -> Color.White
         }
 
     val icBackgroundColor =
@@ -464,6 +490,7 @@ fun BottomSheetPlayer(
             PlayerBackgroundStyle.GLOW -> Color.Black
             PlayerBackgroundStyle.GLOW_ANIMATED -> Color.Black
             PlayerBackgroundStyle.CUSTOM -> Color.Black
+            PlayerBackgroundStyle.SPOTIFY -> Color.Black
         }
 
     val (textButtonColor, iconButtonColor) = when (playerButtonsStyle) {
@@ -1126,6 +1153,125 @@ fun BottomSheetPlayer(
                             Spacer(Modifier.height(16.dp))
                         }
                     }
+                } else if (playerDesignStyle == PlayerDesignStyle.SPOTIFY) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black)
+                    ) {
+                        val spotifyScrollState = rememberScrollState()
+                        SpotifyPlayerBackdrop(
+                            thumbnailUrl = mediaMetadata?.thumbnailUrl,
+                            accentColor = gradientColors.firstOrNull()
+                                ?: MaterialTheme.colorScheme.surfaceContainer,
+                            modifier = Modifier.fillMaxSize()
+                        )
+
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .nestedScroll(state.preUpPostDownNestedScrollConnection)
+                                .verticalScroll(spotifyScrollState)
+                                .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
+                                .padding(horizontal = 24.dp)
+                                .padding(bottom = queueSheetState.collapsedBound + 28.dp),
+                        ) {
+                            Spacer(Modifier.height(22.dp))
+
+                            mediaMetadata?.let { metadata ->
+                                SpotifyPlayerContent(
+                                    mediaMetadata = metadata,
+                                    position = sliderPosition ?: position,
+                                    duration = duration,
+                                    isPlaying = isPlaying,
+                                    isLoading = playbackState != STATE_READY && playbackState != STATE_ENDED,
+                                    canSkipPrevious = canSkipPrevious,
+                                    canSkipNext = canSkipNext,
+                                    repeatMode = repeatMode,
+                                    sliderStyle = sliderStyle,
+                                    lyricsPreview = currentLyrics?.lyrics,
+                                    onSeek = onSliderValueChange,
+                                    onSeekFinished = onSliderValueChangeFinished,
+                                    onPlayPause = { playerConnection.player.togglePlayPause() },
+                                    onPrevious = { playerConnection.player.seekToPrevious() },
+                                    onNext = playerConnection::seekToNext,
+                                    onShuffle = {
+                                        playerConnection.player.shuffleModeEnabled =
+                                            !playerConnection.player.shuffleModeEnabled
+                                    },
+                                    onRepeat = { playerConnection.player.toggleRepeatMode() },
+                                    onOpenLyrics = { lyricsSheetState.expandSoft() },
+                                    onOpenQueue = { queueSheetState.expandSoft() },
+                                    onCollapse = state::collapseSoft,
+                                    onOpenArtist = { artistId ->
+                                        navController.navigate("artist/$artistId")
+                                        state.collapseSoft()
+                                    },
+                                    onOpenMenu = {
+                                        menuState.show {
+                                            PlayerMenu(
+                                                mediaMetadata = metadata,
+                                                navController = navController,
+                                                playerBottomSheetState = state,
+                                                onShowDetailsDialog = {
+                                                    bottomSheetPageState.show {
+                                                        ShowMediaInfo(metadata.id)
+                                                    }
+                                                },
+                                                onDismiss = menuState::dismiss
+                                            )
+                                        }
+                                    },
+                                    isLiked = currentSongLiked,
+                                    onLike = playerConnection::toggleLike,
+                                    onAddToPlaylist = { showChoosePlaylistDialog = true },
+                                    onShowDetails = {
+                                        bottomSheetPageState.show {
+                                            ShowMediaInfo(metadata.id)
+                                        }
+                                    },
+                                    shuffleModeEnabled = shuffleModeEnabled,
+                                    currentSongArtists = currentSong?.artists ?: emptyList(),
+                                )
+                            }
+                        }
+
+                        mediaMetadata?.let { metadata ->
+                            AnimatedVisibility(
+                                visible = spotifyScrollState.value > 400,
+                                enter = fadeIn(tween(180)),
+                                exit = fadeOut(tween(180)),
+                                modifier = Modifier.align(Alignment.TopCenter),
+                            ) {
+                                SpotifyCollapsedHeader(
+                                    mediaMetadata = metadata,
+                                    surfaceColor = MaterialTheme.colorScheme.surfaceContainer,
+                                    isLiked = currentSongLiked,
+                                    onLike = playerConnection::toggleLike,
+                                    onOpenArtist = { artistId ->
+                                        navController.navigate("artist/$artistId")
+                                        state.collapseSoft()
+                                    },
+                                    onOpenMenu = {
+                                        menuState.show {
+                                            PlayerMenu(
+                                                mediaMetadata = metadata,
+                                                navController = navController,
+                                                playerBottomSheetState = state,
+                                                onShowDetailsDialog = {
+                                                    bottomSheetPageState.show {
+                                                        ShowMediaInfo(metadata.id)
+                                                    }
+                                                },
+                                                onDismiss = menuState::dismiss
+                                            )
+                                        }
+                                    },
+                                )
+                            }
+                        }
+                    }
                 } else {
                     Row(
                         modifier =
@@ -1334,6 +1480,125 @@ fun BottomSheetPlayer(
                             }
 
                             Spacer(Modifier.height(24.dp))
+                        }
+                    }
+                } else if (playerDesignStyle == PlayerDesignStyle.SPOTIFY) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black)
+                    ) {
+                        val spotifyScrollState = rememberScrollState()
+                        SpotifyPlayerBackdrop(
+                            thumbnailUrl = mediaMetadata?.thumbnailUrl,
+                            accentColor = gradientColors.firstOrNull()
+                                ?: MaterialTheme.colorScheme.surfaceContainer,
+                            modifier = Modifier.fillMaxSize()
+                        )
+
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .nestedScroll(state.preUpPostDownNestedScrollConnection)
+                                .verticalScroll(spotifyScrollState)
+                                .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
+                                .padding(horizontal = 24.dp)
+                                .padding(bottom = queueSheetState.collapsedBound + 28.dp),
+                        ) {
+                            Spacer(Modifier.height(22.dp))
+
+                            mediaMetadata?.let { metadata ->
+                                SpotifyPlayerContent(
+                                    mediaMetadata = metadata,
+                                    position = sliderPosition ?: position,
+                                    duration = duration,
+                                    isPlaying = isPlaying,
+                                    isLoading = playbackState != STATE_READY && playbackState != STATE_ENDED,
+                                    canSkipPrevious = canSkipPrevious,
+                                    canSkipNext = canSkipNext,
+                                    repeatMode = repeatMode,
+                                    sliderStyle = sliderStyle,
+                                    lyricsPreview = currentLyrics?.lyrics,
+                                    onSeek = onSliderValueChange,
+                                    onSeekFinished = onSliderValueChangeFinished,
+                                    onPlayPause = { playerConnection.player.togglePlayPause() },
+                                    onPrevious = { playerConnection.player.seekToPrevious() },
+                                    onNext = playerConnection::seekToNext,
+                                    onShuffle = {
+                                        playerConnection.player.shuffleModeEnabled =
+                                            !playerConnection.player.shuffleModeEnabled
+                                    },
+                                    onRepeat = { playerConnection.player.toggleRepeatMode() },
+                                    onOpenLyrics = { lyricsSheetState.expandSoft() },
+                                    onOpenQueue = { queueSheetState.expandSoft() },
+                                    onCollapse = state::collapseSoft,
+                                    onOpenArtist = { artistId ->
+                                        navController.navigate("artist/$artistId")
+                                        state.collapseSoft()
+                                    },
+                                    onOpenMenu = {
+                                        menuState.show {
+                                            PlayerMenu(
+                                                mediaMetadata = metadata,
+                                                navController = navController,
+                                                playerBottomSheetState = state,
+                                                onShowDetailsDialog = {
+                                                    bottomSheetPageState.show {
+                                                        ShowMediaInfo(metadata.id)
+                                                    }
+                                                },
+                                                onDismiss = menuState::dismiss
+                                            )
+                                        }
+                                    },
+                                    isLiked = currentSongLiked,
+                                    onLike = playerConnection::toggleLike,
+                                    onAddToPlaylist = { showChoosePlaylistDialog = true },
+                                    onShowDetails = {
+                                        bottomSheetPageState.show {
+                                            ShowMediaInfo(metadata.id)
+                                        }
+                                    },
+                                    shuffleModeEnabled = shuffleModeEnabled,
+                                    currentSongArtists = currentSong?.artists ?: emptyList(),
+                                )
+                            }
+                        }
+
+                        mediaMetadata?.let { metadata ->
+                            AnimatedVisibility(
+                                visible = spotifyScrollState.value > 400,
+                                enter = fadeIn(tween(180)),
+                                exit = fadeOut(tween(180)),
+                                modifier = Modifier.align(Alignment.TopCenter),
+                            ) {
+                                SpotifyCollapsedHeader(
+                                    mediaMetadata = metadata,
+                                    surfaceColor = MaterialTheme.colorScheme.surfaceContainer,
+                                    isLiked = currentSongLiked,
+                                    onLike = playerConnection::toggleLike,
+                                    onOpenArtist = { artistId ->
+                                        navController.navigate("artist/$artistId")
+                                        state.collapseSoft()
+                                    },
+                                    onOpenMenu = {
+                                        menuState.show {
+                                            PlayerMenu(
+                                                mediaMetadata = metadata,
+                                                navController = navController,
+                                                playerBottomSheetState = state,
+                                                onShowDetailsDialog = {
+                                                    bottomSheetPageState.show {
+                                                        ShowMediaInfo(metadata.id)
+                                                    }
+                                                },
+                                                onDismiss = menuState::dismiss
+                                            )
+                                        }
+                                    },
+                                )
+                            }
                         }
                     }
                 } else {

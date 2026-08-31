@@ -23,7 +23,6 @@ import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
-import com.arturo254.opentune.R
 import com.arturo254.opentune.ui.screens.artist.ArtistAlbumsScreen
 import com.arturo254.opentune.ui.screens.artist.ArtistItemsScreen
 import com.arturo254.opentune.ui.screens.artist.ArtistScreen
@@ -55,7 +54,7 @@ import com.arturo254.opentune.ui.screens.settings.StorageSettings
 import com.arturo254.opentune.ui.screens.settings.ThemeCreatorScreen
 import com.arturo254.opentune.ui.screens.settings.UpdateScreen
 
-@RequiresApi(30)
+@RequiresApi(Build.VERSION_CODES.R)
 @OptIn(ExperimentalMaterial3Api::class)
 fun NavGraphBuilder.navigationBuilder(
     navController: NavHostController,

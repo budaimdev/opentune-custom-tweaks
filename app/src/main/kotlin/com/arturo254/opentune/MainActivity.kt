@@ -14,6 +14,7 @@ import android.content.ComponentName
 import android.content.Intent
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
@@ -132,7 +133,6 @@ import androidx.compose.ui.util.fastFirstOrNull
 import androidx.compose.ui.util.fastForEach
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import android.net.Uri
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.toColorInt
 import androidx.core.net.toUri
@@ -155,6 +155,7 @@ import coil3.imageLoader
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
 import coil3.toBitmap
+import com.arturo254.opentune.canvas.CanvasCacheManager
 import com.arturo254.opentune.constants.AppBarHeight
 import com.arturo254.opentune.constants.AppLanguageKey
 import com.arturo254.opentune.constants.CustomThemeColorKey
@@ -163,12 +164,12 @@ import com.arturo254.opentune.constants.DefaultOpenTabKey
 import com.arturo254.opentune.constants.DisableScreenshotKey
 import com.arturo254.opentune.constants.DynamicThemeKey
 import com.arturo254.opentune.constants.EnableHapticFeedbackKey
+import com.arturo254.opentune.constants.EnableLiquidGlassKey
 import com.arturo254.opentune.constants.FloatingToolbarBottomPadding
 import com.arturo254.opentune.constants.FloatingToolbarHeight
 import com.arturo254.opentune.constants.FloatingToolbarHorizontalPadding
 import com.arturo254.opentune.constants.HasPressedStarKey
 import com.arturo254.opentune.constants.LaunchCountKey
-import com.arturo254.opentune.constants.EnableLiquidGlassKey
 import com.arturo254.opentune.constants.LiquidGlassNavBarKey
 import com.arturo254.opentune.constants.LyricsSyncOffsetKey
 import com.arturo254.opentune.constants.MiniPlayerBottomSpacing
@@ -200,8 +201,6 @@ import com.arturo254.opentune.innertube.models.AlbumItem
 import com.arturo254.opentune.innertube.models.ArtistItem
 import com.arturo254.opentune.innertube.models.PlaylistItem
 import com.arturo254.opentune.innertube.models.SongItem
-import com.arturo254.opentune.extensions.toMediaItem
-import com.arturo254.opentune.utils.LocalMediaScanner
 import com.arturo254.opentune.models.toMediaMetadata
 import com.arturo254.opentune.playback.DownloadUtil
 import com.arturo254.opentune.playback.MusicService
@@ -220,14 +219,14 @@ import com.arturo254.opentune.ui.component.DISMISSED_ANCHOR
 import com.arturo254.opentune.ui.component.EXPANDED_ANCHOR
 import com.arturo254.opentune.ui.component.FloatingNavigationToolbar
 import com.arturo254.opentune.ui.component.IconButton
+import com.arturo254.opentune.ui.component.LocalBackdrop
 import com.arturo254.opentune.ui.component.LocalBottomSheetPageState
 import com.arturo254.opentune.ui.component.LocalMenuState
 import com.arturo254.opentune.ui.component.MenuState
 import com.arturo254.opentune.ui.component.TopSearch
-import com.arturo254.opentune.ui.component.rememberBottomSheetState
-import com.arturo254.opentune.ui.component.LocalBackdrop
 import com.arturo254.opentune.ui.component.layerBackdrop
 import com.arturo254.opentune.ui.component.rememberBackdrop
+import com.arturo254.opentune.ui.component.rememberBottomSheetState
 import com.arturo254.opentune.ui.component.shimmer.ShimmerTheme
 import com.arturo254.opentune.ui.menu.YouTubeSongMenu
 import com.arturo254.opentune.ui.player.BottomSheetPlayer
@@ -250,6 +249,8 @@ import com.arturo254.opentune.ui.theme.extractThemeColor
 import com.arturo254.opentune.ui.utils.appBarScrollBehavior
 import com.arturo254.opentune.ui.utils.backToMain
 import com.arturo254.opentune.ui.utils.resetHeightOffset
+import com.arturo254.opentune.utils.LocalMediaScanner
+import com.arturo254.opentune.utils.PreferenceStore
 import com.arturo254.opentune.utils.SyncUtils
 import com.arturo254.opentune.utils.UpdateNotificationManager
 import com.arturo254.opentune.utils.Updater
@@ -271,13 +272,12 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.net.URLDecoder
 import java.net.URLEncoder
 import java.util.Locale
 import javax.inject.Inject
 import kotlin.random.Random
 import kotlin.time.Duration.Companion.days
-import com.arturo254.opentune.canvas.CanvasCacheManager
-import com.arturo254.opentune.utils.PreferenceStore
 
 @Suppress("DEPRECATION", "ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
 @AndroidEntryPoint
@@ -456,6 +456,12 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         window.decorView.layoutDirection = View.LAYOUT_DIRECTION_LTR
         WindowCompat.setDecorFitsSystemWindows(window, false)
+
+        // Discord Social SDK requires a live Activity to derive its application Context from
+        // (DiscordSocialSdkInit.setEngineActivity) before any native SDK call touches Context —
+        // otherwise a background-started MusicService trying to use a previously-linked account
+        // crashes with a NullPointerException deep in the SDK's own DiscordRpcClient.
+        com.arturo254.opentune.utils.DiscordSocialSdkInitCompat.setEngineActivity(this)
 
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
             val initialLocale = PreferenceStore.get(AppLanguageKey)
@@ -921,8 +927,7 @@ class MainActivity : ComponentActivity() {
                             isPlayerExpanded && playerFullscreen -> {
                                 controller.systemBarsBehavior =
                                     WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-                                controller.hide(WindowInsetsCompat.Type.statusBars())
-                                controller.show(WindowInsetsCompat.Type.navigationBars())
+                                controller.hide(WindowInsetsCompat.Type.systemBars())
                             }
 
                             isYearInMusicScreen -> {
@@ -1032,13 +1037,24 @@ class MainActivity : ComponentActivity() {
                         if (navBackStackEntry?.destination?.route?.startsWith("search/") == true) {
                             val searchQuery =
                                 withContext(Dispatchers.IO) {
-                                    Uri.decode(
-                                        navBackStackEntry
+                                    if (navBackStackEntry
                                             ?.arguments
                                             ?.getString(
                                                 "query",
                                             )!!
-                                    )
+                                            .contains(
+                                                "%",
+                                            )
+                                    ) {
+                                        navBackStackEntry?.arguments?.getString(
+                                            "query",
+                                        )!!
+                                    } else {
+                                        URLDecoder.decode(
+                                            navBackStackEntry?.arguments?.getString("query")!!,
+                                            "UTF-8"
+                                        )
+                                    }
                                 }
                             onQueryChange(
                                 TextFieldValue(
@@ -1755,134 +1771,135 @@ class MainActivity : ComponentActivity() {
                                         .fillMaxSize()
                                         .let { if (enableLiquidGlass) it.layerBackdrop(backdrop) else it }
                                 ) {
-                                var transitionDirection =
-                                    AnimatedContentTransitionScope.SlideDirection.Left
+                                    var transitionDirection =
+                                        AnimatedContentTransitionScope.SlideDirection.Left
 
-                                if (navigationItems.fastAny { it.route == navBackStackEntry?.destination?.route }) {
-                                    if (navigationItems.fastAny { it.route == previousTab }) {
-                                        val curIndex = navigationItems.indexOf(
-                                            navigationItems.fastFirstOrNull {
-                                                it.route == navBackStackEntry?.destination?.route
+                                    if (navigationItems.fastAny { it.route == navBackStackEntry?.destination?.route }) {
+                                        if (navigationItems.fastAny { it.route == previousTab }) {
+                                            val curIndex = navigationItems.indexOf(
+                                                navigationItems.fastFirstOrNull {
+                                                    it.route == navBackStackEntry?.destination?.route
+                                                }
+                                            )
+
+                                            val prevIndex = navigationItems.indexOf(
+                                                navigationItems.fastFirstOrNull {
+                                                    it.route == previousTab
+                                                }
+                                            )
+
+                                            if (prevIndex > curIndex)
+                                                AnimatedContentTransitionScope.SlideDirection.Right.also {
+                                                    transitionDirection = it
+                                                }
+                                        }
+                                    }
+
+                                    NavHost(
+                                        navController = navController,
+                                        startDestination = when (tabOpenedFromShortcut
+                                            ?: defaultOpenTab) {
+                                            NavigationTab.HOME -> Screens.Home
+                                            NavigationTab.LIBRARY -> Screens.Library
+                                            else -> Screens.Home
+                                        }.route,
+                                        enterTransition = {
+                                            if (
+                                                initialState.destination.route in topLevelScreens &&
+                                                targetState.destination.route in topLevelScreens
+                                            ) {
+                                                fadeIn(
+                                                    animationSpec = tween(250)
+                                                )
+                                            } else {
+                                                fadeIn(
+                                                    animationSpec = tween(300)
+                                                ) + scaleIn(
+                                                    initialScale = 0.95f,
+                                                    animationSpec = spring(
+                                                        dampingRatio = 0.85f,
+                                                        stiffness = 400f
+                                                    )
+                                                )
+                                            }
+                                        },
+                                        exitTransition = {
+                                            if (
+                                                initialState.destination.route in topLevelScreens &&
+                                                targetState.destination.route in topLevelScreens
+                                            ) {
+                                                fadeOut(
+                                                    animationSpec = tween(200)
+                                                )
+                                            } else {
+                                                fadeOut(
+                                                    animationSpec = tween(200)
+                                                ) + scaleOut(
+                                                    targetScale = 0.98f,
+                                                    animationSpec = tween(200)
+                                                )
+                                            }
+                                        },
+                                        popEnterTransition = {
+                                            if (
+                                                (initialState.destination.route in topLevelScreens ||
+                                                        initialState.destination.route?.startsWith("search/") == true) &&
+                                                targetState.destination.route in topLevelScreens
+                                            ) {
+                                                fadeIn(
+                                                    animationSpec = tween(250)
+                                                )
+                                            } else {
+                                                fadeIn(
+                                                    animationSpec = tween(300)
+                                                ) + scaleIn(
+                                                    initialScale = 0.98f,
+                                                    animationSpec = spring(
+                                                        dampingRatio = 0.85f,
+                                                        stiffness = 400f
+                                                    )
+                                                )
+                                            }
+                                        },
+                                        popExitTransition = {
+                                            if (
+                                                (initialState.destination.route in topLevelScreens ||
+                                                        initialState.destination.route?.startsWith("search/") == true) &&
+                                                targetState.destination.route in topLevelScreens
+                                            ) {
+                                                fadeOut(
+                                                    animationSpec = tween(200)
+                                                )
+                                            } else {
+                                                fadeOut(
+                                                    animationSpec = tween(200)
+                                                ) + scaleOut(
+                                                    targetScale = 0.95f,
+                                                    animationSpec = tween(200)
+                                                )
+                                            }
+                                        },
+                                        modifier = Modifier.nestedScroll(
+                                            if (
+                                                navigationItems.fastAny {
+                                                    it.route == navBackStackEntry?.destination?.route
+                                                } ||
+                                                navBackStackEntry?.destination?.route?.startsWith("search/") == true
+                                            ) {
+                                                searchBarScrollBehavior.nestedScrollConnection
+                                            } else {
+                                                topAppBarScrollBehavior.nestedScrollConnection
                                             }
                                         )
-
-                                        val prevIndex = navigationItems.indexOf(
-                                            navigationItems.fastFirstOrNull {
-                                                it.route == previousTab
-                                            }
+                                    ) {
+                                        navigationBuilder(
+                                            navController,
+                                            topAppBarScrollBehavior,
+                                            latestVersionName
                                         )
-
-                                        if (prevIndex > curIndex)
-                                            AnimatedContentTransitionScope.SlideDirection.Right.also {
-                                                transitionDirection = it
-                                            }
                                     }
                                 }
-
-                                NavHost(
-                                    navController = navController,
-                                    startDestination = when (tabOpenedFromShortcut ?: defaultOpenTab) {
-                                        NavigationTab.HOME -> Screens.Home
-                                        NavigationTab.LIBRARY -> Screens.Library
-                                        else -> Screens.Home
-                                    }.route,
-                                    enterTransition = {
-                                        if (
-                                            initialState.destination.route in topLevelScreens &&
-                                            targetState.destination.route in topLevelScreens
-                                        ) {
-                                            fadeIn(
-                                                animationSpec = tween(250)
-                                            )
-                                        } else {
-                                            fadeIn(
-                                                animationSpec = tween(300)
-                                            ) + scaleIn(
-                                                initialScale = 0.95f,
-                                                animationSpec = spring(
-                                                    dampingRatio = 0.85f,
-                                                    stiffness = 400f
-                                                )
-                                            )
-                                        }
-                                    },
-                                    exitTransition = {
-                                        if (
-                                            initialState.destination.route in topLevelScreens &&
-                                            targetState.destination.route in topLevelScreens
-                                        ) {
-                                            fadeOut(
-                                                animationSpec = tween(200)
-                                            )
-                                        } else {
-                                            fadeOut(
-                                                animationSpec = tween(200)
-                                            ) + scaleOut(
-                                                targetScale = 0.98f,
-                                                animationSpec = tween(200)
-                                            )
-                                        }
-                                    },
-                                    popEnterTransition = {
-                                        if (
-                                            (initialState.destination.route in topLevelScreens ||
-                                                    initialState.destination.route?.startsWith("search/") == true) &&
-                                            targetState.destination.route in topLevelScreens
-                                        ) {
-                                            fadeIn(
-                                                animationSpec = tween(250)
-                                            )
-                                        } else {
-                                            fadeIn(
-                                                animationSpec = tween(300)
-                                            ) + scaleIn(
-                                                initialScale = 0.98f,
-                                                animationSpec = spring(
-                                                    dampingRatio = 0.85f,
-                                                    stiffness = 400f
-                                                )
-                                            )
-                                        }
-                                    },
-                                    popExitTransition = {
-                                        if (
-                                            (initialState.destination.route in topLevelScreens ||
-                                                    initialState.destination.route?.startsWith("search/") == true) &&
-                                            targetState.destination.route in topLevelScreens
-                                        ) {
-                                            fadeOut(
-                                                animationSpec = tween(200)
-                                            )
-                                        } else {
-                                            fadeOut(
-                                                animationSpec = tween(200)
-                                            ) + scaleOut(
-                                                targetScale = 0.95f,
-                                                animationSpec = tween(200)
-                                            )
-                                        }
-                                    },
-                                    modifier = Modifier.nestedScroll(
-                                        if (
-                                            navigationItems.fastAny {
-                                                it.route == navBackStackEntry?.destination?.route
-                                            } ||
-                                            navBackStackEntry?.destination?.route?.startsWith("search/") == true
-                                        ) {
-                                            searchBarScrollBehavior.nestedScrollConnection
-                                        } else {
-                                            topAppBarScrollBehavior.nestedScrollConnection
-                                        }
-                                    )
-                                ) {
-                                    navigationBuilder(
-                                        navController,
-                                        topAppBarScrollBehavior,
-                                        latestVersionName
-                                    )
-                                }
                             }
-                        }
                         }
 
                         BottomSheetMenu(
