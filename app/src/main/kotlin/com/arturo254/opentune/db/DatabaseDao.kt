@@ -390,34 +390,6 @@ interface DatabaseDao {
     @Transaction
     @Query(
         """
-        SELECT
-            song.*
-        FROM
-            event
-        JOIN
-            song ON event.songId = song.id
-        WHERE
-            event.timestamp > (:now - 86400000 * 7 * 2)
-        GROUP BY
-            song.albumId
-        HAVING
-            song.albumId IS NOT NULL
-        ORDER BY
-            sum(event.playTime) DESC
-        LIMIT :limit
-        OFFSET :offset
-        
-        """,
-    )
-    fun getRecommendationAlbum(
-        now: Long = System.currentTimeMillis(),
-        limit: Int = 5,
-        offset: Int = 0,
-    ): Flow<List<Song>>
-
-    @Transaction
-    @Query(
-        """
              SELECT song.id, song.title, song.thumbnailUrl,
                (SELECT COUNT(1)
                 FROM event
@@ -584,8 +556,6 @@ interface DatabaseDao {
 
     @Query("SELECT sum(count) from playCount WHERE song = :songId")
     fun getLifetimePlayCount(songId: String?): Flow<Int>
-    @Query("SELECT sum(count) from playCount WHERE song = :songId AND year = :year")
-    fun getPlayCountByYear(songId: String?, year: Int): Flow<Int>
     @Query("SELECT count from playCount WHERE song = :songId AND year = :year AND month = :month")
     fun getPlayCountByMonth(songId: String?, year: Int, month: Int): Flow<Int>
 
@@ -638,10 +608,6 @@ interface DatabaseDao {
     @Transaction
     @Query("SELECT * FROM song WHERE id = :songId")
     fun song(songId: String?): Flow<Song?>
-
-    @Transaction
-    @Query("SELECT * FROM song WHERE id = :songId LIMIT 1")
-    suspend fun getSongById(songId: String): Song?
 
     @Transaction
     @Query("SELECT * FROM song WHERE id = :songId LIMIT 1")
@@ -700,10 +666,6 @@ interface DatabaseDao {
     @Transaction
     @Query("SELECT * FROM lyrics WHERE id = :id")
     fun lyrics(id: String?): Flow<LyricsEntity?>
-
-    @Transaction
-    @Query("SELECT * FROM lyrics WHERE id = :id LIMIT 1")
-    suspend fun getLyricsById(id: String): LyricsEntity?
 
     @Transaction
     @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
@@ -1079,23 +1041,12 @@ interface DatabaseDao {
     suspend fun getPlaylistById(playlistId: String): Playlist?
 
     @Transaction
-    @Query("SELECT *, (SELECT COUNT(*) FROM playlist_song_map WHERE playlistId = playlist.id) AS songCount FROM playlist WHERE id = :playlistId LIMIT 1")
-    fun getPlaylistByIdBlocking(playlistId: String): Playlist?
-
-    @Transaction
     @Query("SELECT *, (SELECT COUNT(*) FROM playlist_song_map WHERE playlistId = playlist.id) AS songCount FROM playlist WHERE isEditable AND bookmarkedAt IS NOT NULL ORDER BY rowId")
     fun editablePlaylistsByCreateDateAsc(): Flow<List<Playlist>>
 
     @Transaction
     @Query("SELECT *, (SELECT COUNT(*) FROM playlist_song_map WHERE playlistId = playlist.id) AS songCount FROM playlist WHERE browseId = :browseId")
     fun playlistByBrowseId(browseId: String): Flow<Playlist?>
-
-    @Transaction
-    @Query("SELECT COUNT(*) from playlist_song_map WHERE playlistId = :playlistId AND songId = :songId LIMIT 1")
-    fun checkInPlaylist(
-        playlistId: String,
-        songId: String,
-    ): Int
 
     @Query("SELECT songId from playlist_song_map WHERE playlistId = :playlistId AND songId IN (:songIds)")
     fun playlistDuplicates(
@@ -1250,9 +1201,6 @@ interface DatabaseDao {
     @Transaction
     @Query("SELECT * FROM artist WHERE name = :name")
     fun artistByName(name: String): ArtistEntity?
-
-    @Query("SELECT * FROM artist WHERE id = :id LIMIT 1")
-    fun getArtistById(id: String): ArtistEntity?
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     fun insert(song: SongEntity): Long

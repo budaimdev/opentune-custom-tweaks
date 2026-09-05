@@ -16,12 +16,12 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.arturo254.opentune.constants.HideExplicitKey
+import com.arturo254.opentune.constants.HideVideoKey
 import com.arturo254.opentune.innertube.YouTube
 import com.arturo254.opentune.innertube.models.filterExplicit
 import com.arturo254.opentune.innertube.models.filterVideo
 import com.arturo254.opentune.innertube.pages.SearchSummaryPage
-import com.arturo254.opentune.constants.HideExplicitKey
-import com.arturo254.opentune.constants.HideVideoKey
 import com.arturo254.opentune.models.ItemsPage
 import com.arturo254.opentune.utils.dataStore
 import com.arturo254.opentune.utils.get
@@ -40,7 +40,7 @@ constructor(
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
     val query = savedStateHandle.get<String>("query")!!
-    val filter = MutableStateFlow<YouTube.SearchFilter?>(null)
+    val filter = MutableStateFlow<YouTube.SearchFilter?>(YouTube.SearchFilter.FILTER_SONG)
     var summaryPage by mutableStateOf<SearchSummaryPage?>(null)
     val viewStateMap = mutableStateMapOf<String, ItemsPage?>()
 

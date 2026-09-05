@@ -43,37 +43,6 @@ import com.arturo254.opentune.R
 import com.arturo254.opentune.db.MusicDatabase
 import com.arturo254.opentune.db.entities.TagEntity
 
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-fun PlaylistTagChips(
-    database: MusicDatabase,
-    playlistId: String,
-    editable: Boolean = false,
-    onTagClick: ((TagEntity) -> Unit)? = null,
-    modifier: Modifier = Modifier
-) {
-    val tags by database.playlistTags(playlistId).collectAsState(initial = emptyList())
-
-    if (tags.isNotEmpty()) {
-        FlowRow(
-            modifier = modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            tags.forEach { tag ->
-                TagChip(
-                    tag = tag,
-                    editable = editable,
-                    onClick = { onTagClick?.invoke(tag) },
-                    onRemove = if (editable) {
-                        { database.transaction { removePlaylistTag(playlistId, tag.id) } }
-                    } else null
-                )
-            }
-        }
-    }
-}
-
 @Composable
 fun TagChip(
     tag: TagEntity,

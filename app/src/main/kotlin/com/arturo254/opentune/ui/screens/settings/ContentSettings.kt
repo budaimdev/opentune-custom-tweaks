@@ -17,25 +17,52 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.core.net.toUri
 import androidx.navigation.NavController
-import com.arturo254.opentune.innertube.YouTube
 import com.arturo254.opentune.LocalPlayerAwareWindowInsets
 import com.arturo254.opentune.R
-import com.arturo254.opentune.constants.*
-import com.arturo254.opentune.ui.component.*
+import com.arturo254.opentune.constants.AppLanguageKey
+import com.arturo254.opentune.constants.ContentCountryKey
+import com.arturo254.opentune.constants.ContentLanguageKey
+import com.arturo254.opentune.constants.CountryCodeToName
+import com.arturo254.opentune.constants.EnableBetterLyricsKey
+import com.arturo254.opentune.constants.EnableLrcLibKey
+import com.arturo254.opentune.constants.HideExplicitKey
+import com.arturo254.opentune.constants.HideVideoKey
+import com.arturo254.opentune.constants.LanguageCodeToName
+import com.arturo254.opentune.constants.LyricsRomanizeJapaneseKey
+import com.arturo254.opentune.constants.LyricsRomanizeKoreanKey
+import com.arturo254.opentune.constants.PreferredLyricsProvider
+import com.arturo254.opentune.constants.PreferredLyricsProviderKey
+import com.arturo254.opentune.constants.PreloadQueueLyricsEnabledKey
+import com.arturo254.opentune.constants.ProxyEnabledKey
+import com.arturo254.opentune.constants.ProxyTypeKey
+import com.arturo254.opentune.constants.ProxyUrlKey
+import com.arturo254.opentune.constants.QueueLyricsPreloadCountKey
+import com.arturo254.opentune.constants.QuickPicks
+import com.arturo254.opentune.constants.QuickPicksKey
+import com.arturo254.opentune.constants.SYSTEM_DEFAULT
+import com.arturo254.opentune.constants.StreamBypassProxyKey
+import com.arturo254.opentune.constants.TopSize
+import com.arturo254.opentune.innertube.YouTube
+import com.arturo254.opentune.ui.component.EditTextPreference
+import com.arturo254.opentune.ui.component.IconButton
+import com.arturo254.opentune.ui.component.ListPreference
+import com.arturo254.opentune.ui.component.NumberPickerPreference
+import com.arturo254.opentune.ui.component.PreferenceEntry
+import com.arturo254.opentune.ui.component.PreferenceGroupTitle
+import com.arturo254.opentune.ui.component.SwitchPreference
 import com.arturo254.opentune.ui.utils.backToMain
 import com.arturo254.opentune.utils.rememberEnumPreference
 import com.arturo254.opentune.utils.rememberPreference
 import com.arturo254.opentune.utils.setAppLocale
 import java.net.Proxy
 import java.util.Locale
-import androidx.core.net.toUri
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,11 +82,8 @@ fun ContentSettings(
     val (proxyType, onProxyTypeChange) = rememberEnumPreference(key = ProxyTypeKey, defaultValue = Proxy.Type.HTTP)
     val (proxyUrl, onProxyUrlChange) = rememberPreference(key = ProxyUrlKey, defaultValue = "host:port")
     val (streamBypassProxy, onStreamBypassProxyChange) = rememberPreference(key = StreamBypassProxyKey, defaultValue = false)
-    val (enableKugou, onEnableKugouChange) = rememberPreference(key = EnableKugouKey, defaultValue = true)
     val (enableLrclib, onEnableLrclibChange) = rememberPreference(key = EnableLrcLibKey, defaultValue = true)
     val (enableBetterLyrics, onEnableBetterLyricsChange) = rememberPreference(key = EnableBetterLyricsKey, defaultValue = true)
-    val (enableSimpMusicLyrics, onEnableSimpMusicLyricsChange) =
-        rememberPreference(key = EnableSimpMusicLyricsKey, defaultValue = true)
     val (preferredProvider, onPreferredProviderChange) =
         rememberEnumPreference(
             key = PreferredLyricsProviderKey,
@@ -215,22 +239,10 @@ fun ContentSettings(
             onCheckedChange = onEnableLrclibChange,
         )
         SwitchPreference(
-            title = { Text(stringResource(R.string.enable_kugou)) },
-            icon = { Icon(painterResource(R.drawable.lyrics), null) },
-            checked = enableKugou,
-            onCheckedChange = onEnableKugouChange,
-        )
-        SwitchPreference(
             title = { Text(stringResource(R.string.enable_betterlyrics)) },
             icon = { Icon(painterResource(R.drawable.lyrics), null) },
             checked = enableBetterLyrics,
             onCheckedChange = onEnableBetterLyricsChange,
-        )
-        SwitchPreference(
-            title = { Text(stringResource(R.string.enable_simpmusic_lyrics)) },
-            icon = { Icon(painterResource(R.drawable.lyrics), null) },
-            checked = enableSimpMusicLyrics,
-            onCheckedChange = onEnableSimpMusicLyricsChange,
         )
         ListPreference(
             title = { Text(stringResource(R.string.set_first_lyrics_provider)) },

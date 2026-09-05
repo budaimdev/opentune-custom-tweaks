@@ -6,19 +6,13 @@
 
 package com.arturo254.opentune.ui.screens.settings
 
-import android.content.ActivityNotFoundException
 import android.content.Context
-import android.content.Intent
-import android.net.Uri
-import android.provider.Settings
-import android.widget.Toast
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavController
-import com.arturo254.opentune.BuildConfig
 import com.arturo254.opentune.R
 
 @Composable
@@ -118,14 +112,6 @@ fun buildSettingsGroups(
                         keywords = listOf("language", "content", "lyrics", "translation", "region"),
                         onClick = { resetSearch(); navController.navigate("settings/content") },
                     ),
-                    SettingsItem(
-                        icon = painterResource(R.drawable.token),
-                        title = stringResource(R.string.po_token_generation),
-                        subtitle = stringResource(R.string.po_token_generation_subtitle),
-                        accentColor = MaterialTheme.colorScheme.tertiary,
-                        keywords = listOf("po token", "token", "web client", "visitor data", "gvs", "player"),
-                        onClick = { resetSearch(); navController.navigate("settings/po_token") },
-                    ),
                 ),
             ),
         )
@@ -167,94 +153,6 @@ fun buildSettingsGroups(
                         onClick = { resetSearch(); navController.navigate("settings/backup_restore") },
                     ),
                 ),
-            ),
-        )
-
-        add(
-            SettingsGroup(
-                title = stringResource(R.string.settings_section_system),
-                items = buildList {
-                    if (isAndroid12OrLater) {
-                        add(
-                            SettingsItem(
-                                icon = painterResource(R.drawable.link),
-                                title = stringResource(R.string.default_links),
-                                subtitle = stringResource(R.string.open_supported_links),
-                                accentColor = MaterialTheme.colorScheme.primary,
-                                keywords = listOf("links", "deeplink", "default", "supported links"),
-                                onClick = {
-                                    resetSearch()
-                                    try {
-                                        val intent = Intent(
-                                            Settings.ACTION_APP_OPEN_BY_DEFAULT_SETTINGS,
-                                            Uri.parse("package:${context.packageName}")
-                                        )
-                                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                        context.startActivity(intent)
-                                    } catch (e: Exception) {
-                                        when (e) {
-                                            is ActivityNotFoundException,
-                                            is SecurityException,
-                                            -> {
-                                                Toast.makeText(
-                                                    context,
-                                                    R.string.open_app_settings_error,
-                                                    Toast.LENGTH_LONG,
-                                                ).show()
-                                            }
-                                            else -> {
-                                                Toast.makeText(
-                                                    context,
-                                                    R.string.open_app_settings_error,
-                                                    Toast.LENGTH_LONG,
-                                                ).show()
-                                            }
-                                        }
-                                    }
-                                },
-                            ),
-                        )
-                    }
-                    add(
-                        SettingsItem(
-                            icon = painterResource(R.drawable.experiment),
-                            title = stringResource(R.string.experiment_settings),
-                            subtitle = stringResource(R.string.misc),
-                            accentColor = MaterialTheme.colorScheme.tertiary,
-                            keywords = listOf("experimental", "debug", "developer", "labs", "internal"),
-                            onClick = { resetSearch(); navController.navigate("settings/misc") },
-                        ),
-                    )
-                    add(
-                        SettingsItem(
-                            icon = painterResource(R.drawable.update),
-                            title = stringResource(R.string.updates),
-                            subtitle = if (hasUpdate) {
-                                stringResource(R.string.new_version_available)
-                            } else {
-                                BuildConfig.VERSION_NAME
-                            },
-                            showUpdateIndicator = hasUpdate,
-                            accentColor = if (hasUpdate) {
-                                MaterialTheme.colorScheme.tertiary
-                            } else {
-                                MaterialTheme.colorScheme.primary
-                            },
-                            keywords = listOf("update", "version", "release", "changelog"),
-                            onClick = { resetSearch(); navController.navigate("settings/update") },
-                        ),
-                    )
-                    add(
-                        SettingsItem(
-                            icon = painterResource(R.drawable.info),
-                            title = stringResource(R.string.about),
-                            subtitle = "OpenTune",
-                            accentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            keywords = listOf("about", "app info", "license", "contributors"),
-                            onClick = { resetSearch(); navController.navigate("settings/about") },
-                        ),
-                    )
-                },
             ),
         )
     }

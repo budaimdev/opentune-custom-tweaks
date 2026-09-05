@@ -109,7 +109,6 @@ fun SettingsScreen(
         }
     }
 
-    val shouldShowPermissionHint = !isStorageGranted || !isNotificationGranted
     val hasUpdate = !Updater.isSameVersion(latestVersionName, BuildConfig.VERSION_NAME)
 
     val resetSearch: () -> Unit = {
@@ -157,7 +156,7 @@ fun SettingsScreen(
         integrations = if (queryText.isBlank()) integrationActions else filteredIntegrations,
         groups = if (queryText.isBlank()) settingsGroups else filteredGroups,
         internalGroup = if (queryText.isNotBlank()) internalGroup else null,
-        showPermissionBanner = shouldShowPermissionHint,
+        showPermissionBanner = false,
         showUpdateBanner = hasUpdate,
         latestVersion = latestVersionName,
         isSearchActive = queryText.isNotBlank(),

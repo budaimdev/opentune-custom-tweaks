@@ -91,8 +91,8 @@ android {
         applicationId = "cz.budaimdev.opentune"
         minSdk = 26
         targetSdk = 36
-        versionCode = 134
-        versionName = "3.0.7"
+        versionCode = 135
+        versionName = "3.0.8"
 //        versionName = "3.0.2-$gitCommit"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
